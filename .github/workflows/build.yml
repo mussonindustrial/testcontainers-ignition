@@ -1,0 +1,49 @@
+# GitHub Actions workflow to automatically build and test.
+name: 'Build'
+
+on:
+  push:
+    branches-ignore: ['main']
+  pull_request:
+    branches: ['main']
+
+# Cancel in progress workflows on pull_requests.
+# https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: 21
+
+permissions:
+  issues: write
+  contents: write
+
+jobs:
+  build:
+    name: 'Build'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@v4
+
+      - name: 'Set up Java ${{ env.JAVA_VERSION }}'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '${{ env.JAVA_VERSION }}'
+          distribution: 'zulu'
+      - name: 'Setup Gradle'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+          build-scan-publish: true
+          build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+          build-scan-terms-of-use-agree: "yes"
+      - name: 'Make gradlew executable'
+        run: chmod +x ./gradlew
+      - name: 'Validate Gradle wrapper'
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: 'Build'
+        run: ./gradlew --scan build
