@@ -1,9 +1,13 @@
-# testcontainers-ignition [<img src="https://cdn.mussonindustrial.com/files/public/images/emblem.svg" alt="Musson Industrial Logo" width="90" height="40" align="right">][embr]
+# testcontainers-ignition [<img src="https://cdn.mussonindustrial.com/files/public/images/emblem.svg" alt="Musson Industrial Logo" width="90" height="40" align="right">][testcontainers-ignition]
 
 [![Build](https://github.com/mussonindustrial/testcontainers-ignition/actions/workflows/build.yml/badge.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mussonindustrial/embr/blob/main/LICENSE)
 
-A testcontainers implementation for Ignition by Inductive Automation.
+[Testcontainers] is a Java library that supports JUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker container.
+
+This project is a Testcontainers implementation for [Ignition by Inductive Automation](https://inductiveautomation.com/).
+
+
 
 ## Install
 ```kotlin
@@ -38,6 +42,7 @@ If you'd like to sponsor this project and have your avatar or company logo appea
 -   [Musson Industrial](https://mussonindustrial.com/)
 -   [Inductive Automation](https://inductiveautomation.com/)
 
-[embr]: https://github.com/mussonindustrial/embr
+[testcontainers-ignition]: https://github.com/mussonindustrial/testcontainers-ignition/
+[testcontainers]: https://java.testcontainers.org/
 [contributors]: https://github.com/mussonindustrial/embr/graphs/contributors
 [sponsors]: https://github.com/sponsors/mussonindustrial
