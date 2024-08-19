@@ -41,21 +41,21 @@ tasks.withType(Test::class).configureEach {
     }
 }
 
+val stagingDir: Provider<Directory> = layout.buildDirectory.dir("staging-deploy")
+
 publishing {
     repositories {
         maven {
             name = "MavenCentral"
-            url = uri(layout.buildDirectory.dir("staging-deploy"))
+            url = stagingDir.get().asFile.toURI()
         }
     }
     publications {
-        create<MavenPublication>("Maven") {
+        create<MavenPublication>("mavenJava") {
             from(components["java"])
             groupId = "com.mussonindustrial"
             artifactId = "testcontainers-ignition"
             description = "testcontainers-ignition - An implementation of Testcontainers for Ignition by Inductive Automation"
-        }
-        withType<MavenPublication>{
             pom {
                 name = "testcontainers-ignition"
                 url = "https://github.com/mussonindustrial/testcontainers-ignition"
@@ -87,6 +87,13 @@ publishing {
 
 
 jreleaser {
+    project {
+        name.set("testcontainers-ignition")
+        description.set("An implementation of Testcontainers for Ignition by Inductive Automation")
+        authors.set(arrayListOf("benmusson"))
+        license.set("MIT")
+        inceptionYear = "2024"
+    }
     signing {
         active = Active.ALWAYS
         armored = true
@@ -97,7 +104,7 @@ jreleaser {
                 create("sonatype") {
                     active = Active.ALWAYS
                     url = "https://central.sonatype.com/api/v1/publisher"
-                    stagingRepository(layout.buildDirectory.dir("staging-deploy").toString())
+                    stagingRepository(stagingDir.get().toString())
                 }
             }
         }
