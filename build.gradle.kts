@@ -9,6 +9,7 @@ plugins {
 
 group = "com.mussonindustrial"
 version = "0.1.0"
+description = "An implementation of Testcontainers for Ignition by Inductive Automation."
 
 repositories {
     mavenCentral()
@@ -53,11 +54,12 @@ publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
-            groupId = "com.mussonindustrial"
-            artifactId = "testcontainers-ignition"
-            description = "testcontainers-ignition - An implementation of Testcontainers for Ignition by Inductive Automation"
+            groupId = project.group.toString()
+            artifactId = project.name
+            description = project.description
             pom {
-                name = "testcontainers-ignition"
+                name = project.name
+                description = project.description
                 url = "https://github.com/mussonindustrial/testcontainers-ignition"
                 properties = mapOf()
                 licenses {
@@ -88,9 +90,7 @@ publishing {
 
 jreleaser {
     project {
-        name.set("testcontainers-ignition")
-        description.set("An implementation of Testcontainers for Ignition by Inductive Automation")
-        authors.set(arrayListOf("benmusson"))
+        authors.set(arrayListOf("Ben Musson"))
         license.set("MIT")
         inceptionYear = "2024"
     }
