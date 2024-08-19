@@ -43,3 +43,5 @@ gradle-app.setting
 
 # VSCode
 .vscode
+
+.secrets
