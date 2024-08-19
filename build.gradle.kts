@@ -47,14 +47,6 @@ publishing {
             name = "MavenCentral"
             url = uri(layout.buildDirectory.dir("staging-deploy"))
         }
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/mussonindustrial/testcontainers-ignition")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
-            }
-        }
     }
     publications {
         create<MavenPublication>("Maven") {
