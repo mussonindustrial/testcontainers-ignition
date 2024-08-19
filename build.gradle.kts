@@ -1,7 +1,10 @@
+import org.jreleaser.model.Active
+
 plugins {
     `java-library`
     `maven-publish`
     signing
+    alias(libs.plugins.jreleaser)
 }
 
 group = "com.mussonindustrial"
@@ -12,11 +15,11 @@ repositories {
 }
 
 dependencies {
-    api("org.testcontainers:testcontainers:1.20.1")
+    api(libs.testcontainers)
 
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
-    testImplementation("org.slf4j:slf4j-simple:2.0.16")
+    testRuntimeOnly(libs.junit.platform)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.slf4j)
 }
 
 java {
@@ -32,16 +35,37 @@ tasks.withType(Test::class).configureEach {
     maxParallelForks = Runtime.getRuntime().availableProcessors().div(2)
     forkEvery = 1
     reports.html.required = true
+
+    testLogging {
+        showStandardStreams = true
+    }
 }
 
 publishing {
+    repositories {
+        maven {
+            name = "MavenCentral"
+            url = uri(layout.buildDirectory.dir("staging-deploy"))
+        }
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/mussonindustrial/testcontainers-ignition")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
     publications {
-        create<MavenPublication>("mavenJava") {
-            artifactId = "testcontainers-ignition"
+        create<MavenPublication>("Maven") {
             from(components["java"])
+            groupId = "com.mussonindustrial"
+            artifactId = "testcontainers-ignition"
+            description = "testcontainers-ignition - An implementation of Testcontainers for Ignition by Inductive Automation"
+        }
+        withType<MavenPublication>{
             pom {
                 name = "testcontainers-ignition"
-                description = "testcontainers-ignition - An implementation of testcontainers for Ignition by Inductive Automation"
                 url = "https://github.com/mussonindustrial/testcontainers-ignition"
                 properties = mapOf()
                 licenses {
@@ -60,25 +84,31 @@ publishing {
                     }
                 }
                 scm {
-                    url = "https://github.com/mussonindustrial/testcontainers-ignition/tree/master"
+                    url = "https://github.com/mussonindustrial/testcontainers-ignition"
                     connection = "scm:git:git://github.com/mussonindustrial/testcontainers-ignition.git"
                     developerConnection = "scm:git:ssh://github.com/mussonindustrial/testcontainers-ignition.git"
                 }
             }
         }
     }
-    repositories {
-        maven {
-            // change URLs to point to your repos, e.g. http://my.org/repo
-            val releasesRepoUrl = uri(layout.buildDirectory.dir("repos/releases"))
-            val snapshotsRepoUrl = uri(layout.buildDirectory.dir("repos/snapshots"))
-            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
-        }
-    }
 }
 
-signing {
-    // use the properties passed as command line args
-    // -Psigning.keyId=${{secrets.SIGNING_KEY_ID}} -Psigning.password=${{secrets.SIGNING_PASSWORD}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/secring.gpg)
-    sign(publishing.publications["mavenJava"])
+
+jreleaser {
+    signing {
+        active = Active.ALWAYS
+        armored = true
+    }
+    deploy {
+        maven {
+            mavenCentral {
+                create("sonatype") {
+                    active = Active.ALWAYS
+                    url = "https://central.sonatype.com/api/v1/publisher"
+                    stagingRepository("target/staging-deploy")
+                }
+            }
+        }
+
+    }
 }

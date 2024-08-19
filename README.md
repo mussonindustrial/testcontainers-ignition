@@ -1,34 +1,40 @@
-<div align="center">
-  <h1>
-    <i>testcontainers-ignition</i>
-</h1>
-<h3>A testcontainers implementation for Ignition by Inductive Automation.</h3>
-  <br>
-  <a href="https://mussonindustrial.com">
-        <img src="https://cdn.mussonindustrial.com/files/public/images/emblem.svg" alt="Musson Industrial Logo" width="90" height="40">
-  </a>
-  <br><br>
-<p>
+# testcontainers-ignition [<img src="https://cdn.mussonindustrial.com/files/public/images/emblem.svg" alt="Musson Industrial Logo" width="90" height="40" align="right">][testcontainers-ignition]
 
 [![Build](https://github.com/mussonindustrial/testcontainers-ignition/actions/workflows/build.yml/badge.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mussonindustrial/embr/blob/main/LICENSE)
 
-</p>
-</div>
+[Testcontainers] is a Java library that supports JUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker container.
 
-## Install / Build
+This project is a Testcontainers implementation for [Ignition by Inductive Automation](https://inductiveautomation.com/).
 
-```sh
-git clone https://github.com/mussonindustrial/testcontainers-ignition
-cd testcontainers-ignition
-./gradlew build
+
+
+## Install
+```kotlin
+// TODO: Publish to maven central.
+```
+
+## Usage
+```java
+void createIgnitionGateway() {
+    try (
+            IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+                    .withCredentials("myUsername", "myPassword")
+                    .withEdition(GatewayEdition.STANDARD)
+                    .withGatewayBackup("./path/to/backup.gwbk", false)
+                    .withModule(Module.PERSPECTIVE)
+                    .withThirdPartyModule("./path/to/module.modl")
+    ) {
+        ignition.start();
+        String url = ignition.getGatewayUrl();
+        // ... do something with your gateway!
+    }
+}
 ```
 
 ## Sponsors
-Maintenance of this project is made possible by all the [contributors] and [sponsors].
+Maintenance of this project is made possible by all our [contributors] and [sponsors].
 If you'd like to sponsor this project and have your avatar or company logo appear below [click here](https://github.com/sponsors/mussonindustrial). 💖
-
-
 
 ## Links
 
@@ -36,6 +42,7 @@ If you'd like to sponsor this project and have your avatar or company logo appea
 -   [Musson Industrial](https://mussonindustrial.com/)
 -   [Inductive Automation](https://inductiveautomation.com/)
 
-[embr]: https://github.com/mussonindustrial/embr
+[testcontainers-ignition]: https://github.com/mussonindustrial/testcontainers-ignition/
+[testcontainers]: https://java.testcontainers.org/
 [contributors]: https://github.com/mussonindustrial/embr/graphs/contributors
 [sponsors]: https://github.com/sponsors/mussonindustrial
