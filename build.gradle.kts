@@ -12,11 +12,11 @@ repositories {
 }
 
 dependencies {
-    api("org.testcontainers:testcontainers:1.20.1")
+    api(libs.testcontainers)
 
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
-    testImplementation("org.slf4j:slf4j-simple:2.0.16")
+    testRuntimeOnly(libs.junit.platform)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.slf4j)
 }
 
 java {
@@ -35,7 +35,20 @@ tasks.withType(Test::class).configureEach {
 }
 
 publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/mussonindustrial/testcontainers-ignition")
+            credentials {
+                username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
+                password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+            }
+        }
+    }
     publications {
+        register<MavenPublication>("gpr") {
+            from(components["java"])
+        }
         create<MavenPublication>("mavenJava") {
             artifactId = "testcontainers-ignition"
             from(components["java"])
@@ -69,7 +82,6 @@ publishing {
     }
     repositories {
         maven {
-            // change URLs to point to your repos, e.g. http://my.org/repo
             val releasesRepoUrl = uri(layout.buildDirectory.dir("repos/releases"))
             val snapshotsRepoUrl = uri(layout.buildDirectory.dir("repos/snapshots"))
             url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl

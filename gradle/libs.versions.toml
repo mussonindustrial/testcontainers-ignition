@@ -1,0 +1,11 @@
+[versions]
+testcontainers = "1.20.1"
+junit-platform = "1.11.0"
+junit-jupiter = "5.11.0"
+slf4j = "2.0.16"
+
+[libraries]
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers"}
+junit-platform = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform"}
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter"}
+slf4j = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j"}
