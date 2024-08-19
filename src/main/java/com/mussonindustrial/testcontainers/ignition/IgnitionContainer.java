@@ -68,6 +68,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param token the activation token to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withActivationToken(String token) {
         checkNotRunning();
         env.setIgnitionActivationToken(token);
@@ -81,6 +82,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param password the password for the admin user.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withCredentials(final String username, final String password) {
         checkNotRunning();
         env.setGatewayAdminUsername(username);
@@ -94,6 +96,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param debugMode the debug mode setting to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withDebugMode(boolean debugMode) {
         checkNotRunning();
         runtime.setDebugMode(debugMode);
@@ -106,6 +109,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param edition the Ignition version to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withEdition(GatewayEdition edition) {
         checkNotRunning();
         env.setIgnitionEdition(edition);
@@ -119,6 +123,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param restoreDisabled true to restore to a disabled state.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withGatewayBackup(String path, boolean restoreDisabled) {
         checkNotRunning();
         runtime.setRestorePath("/restore.gwbk");
@@ -133,6 +138,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param name the gateway name to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withGatewayName(String name) {
         checkNotRunning();
         runtime.setName(name);
@@ -145,6 +151,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param gid the GID to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withGid(int gid) {
         checkNotRunning();
         env.setIgnitionGid(gid);
@@ -157,6 +164,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param key the license key to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withLicenseKey(String key) {
         checkNotRunning();
         env.setIgnitionLicenseKey(key);
@@ -169,6 +177,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param memoryMax the maximum memory to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withMaxMemory(int memoryMax) {
         checkNotRunning();
         runtime.setMemoryMax(memoryMax);
@@ -181,6 +190,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param module the module to add.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withModule(Module module) {
         checkNotRunning();
         env.addGatewayModule(module);
@@ -193,6 +203,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param modules the modules to add.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withModules(Module[] modules) {
         checkNotRunning();
         Arrays.stream(modules).forEach(env::addGatewayModule);
@@ -205,6 +216,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param path the path to the module file to add.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withThirdPartyModule(String path) {
         checkNotRunning();
         File f = new File(path);
@@ -220,6 +232,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param paths the paths to the modules files to add.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withThirdPartyModules(String[] paths) {
         checkNotRunning();
         Arrays.stream(paths).forEach((path) -> {
@@ -237,6 +250,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param quickStart the debug mode setting to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withQuickStart(boolean quickStart) {
         checkNotRunning();
         env.setDisableQuickStart(!quickStart);
@@ -249,6 +263,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param timezone the gateway timezone to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withTimezone(String timezone) {
         checkNotRunning();
         env.setTimezone(timezone);
@@ -261,6 +276,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param uid the UID to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer withUid(int uid) {
         checkNotRunning();
         env.setIgnitionUid(uid);
@@ -272,6 +288,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @return the gateway admin username.
      */
+    @SuppressWarnings("unused")
     public String getUsername() {
         return env.gatewayAdminUsername;
     }
@@ -281,6 +298,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @return the gateway admin password.
      */
+    @SuppressWarnings("unused")
     public String getPassword() {
         return env.gatewayAdminPassword;
     }
@@ -290,6 +308,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @return the mapped gateway HTTP port.
      */
+    @SuppressWarnings("unused")
     public int getGatewayHttpPort() {
         return getMappedPort(env.gatewayHttpPort);
     }
@@ -299,6 +318,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @return the mapped gateway HTTPS port.
      */
+    @SuppressWarnings("unused")
     public int getGatewayHttpsPort() {
         return getMappedPort(env.gatewayHttpsPort);
     }
@@ -308,6 +328,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @return the mapped gateway GAN port.
      */
+    @SuppressWarnings("unused")
     public int getGatewayGanPort() {
         return getMappedPort(env.gatewayGanPort);
     }
@@ -317,6 +338,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @return the mapped remote JVM debugging port.
      */
+    @SuppressWarnings("unused")
     public int getDebugPort() {
         return getMappedPort(env.debugPort);
     }
@@ -326,6 +348,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @return the URL of the gateway web interface.
      */
+    @SuppressWarnings("unused")
     public String getGatewayUrl() {
         return String.format("http://%s:%d", getHost(), getGatewayHttpPort());
     }
@@ -336,6 +359,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @return the URL of the gateway web interface.
      */
+    @SuppressWarnings("unused")
     public String getGatewayUrl(boolean useHttps) {
         String mode = useHttps ? "https" : "http";
         return String.format("%s://%s:%d", mode, getHost(), getGatewayHttpPort());
@@ -395,7 +419,6 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     private static class EnvVariables {
 
         private String timezone;
-        private final String acceptIgnitionEula = "Y";
         private Boolean gatewayRestoreDisabled;
         private String gatewayAdminUsername = "admin";
         private String gatewayAdminPassword = "password";
@@ -413,16 +436,12 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
         private Integer ignitionGid;
         private Boolean disableQuickStart = true;
 
-        public String getTimezone() { return timezone; }
         public void setTimezone(String timezone) { this.timezone = timezone; }
 
-        public Boolean getGatewayRestoreDisabled() { return gatewayRestoreDisabled; }
         public void setGatewayRestoreDisabled(Boolean gatewayRestoreDisabled) { this.gatewayRestoreDisabled = gatewayRestoreDisabled; }
 
-        public String getGatewayAdminUsername() { return gatewayAdminUsername; }
         public void setGatewayAdminUsername(String gatewayAdminUsername) { this.gatewayAdminUsername = gatewayAdminUsername; }
 
-        public String getGatewayAdminPassword() { return gatewayAdminPassword; }
         public void setGatewayAdminPassword(String gatewayAdminPassword) { this.gatewayAdminPassword = gatewayAdminPassword; }
 
         public Integer getGatewayHttpPort() { return gatewayHttpPort; }
@@ -433,36 +452,27 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
         public Integer getDebugPort() { return debugPort; }
 
-        public GatewayEdition getIgnitionEdition() { return ignitionEdition; }
         public void setIgnitionEdition(GatewayEdition ignitionEdition) { this.ignitionEdition = ignitionEdition; }
 
-        public String getIgnitionLicenseKey() { return ignitionLicenseKey; }
         public void setIgnitionLicenseKey(String ignitionLicenseKey) { this.ignitionLicenseKey = ignitionLicenseKey; }
 
-        public String getIgnitionActivationToken() { return ignitionActivationToken; }
         public void setIgnitionActivationToken(String ignitionActivationToken) { this.ignitionActivationToken = ignitionActivationToken; }
 
-        public Module[] getGatewayModules() { return gatewayModules; }
-        public void setGatewayModules(Module[] gatewayModulesEnabled) { this.gatewayModules = gatewayModulesEnabled; }
         public void addGatewayModule(Module moduleIdentifier) { this.gatewayModules =  ArrayUtils.add(gatewayModules, moduleIdentifier ); }
 
-        public String[] getThirdPartyModules() { return thirdPartyModules; }
-        public void setThirdPartyModules(String[] thirdPartyModules) { this.thirdPartyModules = thirdPartyModules; }
         public void addThirdPartyModule(String thirdPartyModule) { this.thirdPartyModules =  ArrayUtils.add(thirdPartyModules, thirdPartyModule ); }
 
 
-        public Integer getIgnitionUid() { return ignitionUid; }
         public void setIgnitionUid(Integer ignitionUid) { this.ignitionUid = ignitionUid; }
 
-        public Integer getIgnitionGid() { return ignitionGid; }
         public void setIgnitionGid(Integer ignitionGid) { this.ignitionGid = ignitionGid; }
 
-        public Boolean getDisableQuickStart() { return disableQuickStart; }
         public void setDisableQuickStart(Boolean disableQuickStart) { this.disableQuickStart = disableQuickStart; }
 
         public Map<String, String> toMap() {
             Map<String, String> map = new HashMap<>();
 
+            String acceptIgnitionEula = "Y";
             map.put("ACCEPT_IGNITION_EULA", acceptIgnitionEula);
             if (disableQuickStart != null) map.put("DISABLE_QUICKSTART", disableQuickStart.toString());
             if (gatewayAdminPassword != null) map.put("GATEWAY_ADMIN_PASSWORD", gatewayAdminPassword);
