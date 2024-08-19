@@ -21,7 +21,7 @@ dependencies {
 ```
 
 ### Maven
-```
+```xml
 <dependency>
     <groupId>com.mussonindustrial</groupId>
     <artifactId>testcontainers-ignition</artifactId>
