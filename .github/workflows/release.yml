@@ -35,11 +35,10 @@ jobs:
         uses: gradle/actions/wrapper-validation@v4
 
       - name: 'Build'
-        run: ./gradlew --scan clean build publish
+        run: ./gradlew --scan clean build
 
-      # Create a release
-      - name: Run JReleaser
-        uses: jreleaser/release-action@v2
+      - name: 'Release'
+        run: ./gradlew --scan publish jreleaserPublish
         env:
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
@@ -47,13 +46,3 @@ jobs:
           JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}
           JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           JRELEASER_MAVENCENTRAL_SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-
-      # Persist logs
-      - name: JReleaser release output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jreleaser-release
-          path: |
-            out/jreleaser/trace.log
-            out/jreleaser/output.properties
