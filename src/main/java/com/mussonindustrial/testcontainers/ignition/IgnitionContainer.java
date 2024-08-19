@@ -389,7 +389,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     @Override
     protected void containerIsStarted(final InspectContainerResponse containerInfo) {
-        logger().info("Ignition container is ready! UI available at {}", getGatewayUrl());
+        logger().info("Ignition container is ready! Gateway Web UI is available at {}", getGatewayUrl());
     }
 
     private static class EnvVariables {

@@ -35,6 +35,10 @@ tasks.withType(Test::class).configureEach {
     maxParallelForks = Runtime.getRuntime().availableProcessors().div(2)
     forkEvery = 1
     reports.html.required = true
+
+    testLogging {
+        showStandardStreams = true
+    }
 }
 
 publishing {
