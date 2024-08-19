@@ -22,6 +22,7 @@ jobs:
         with:
           java-version: '${{ env.JAVA_VERSION }}'
           distribution: 'zulu'
+
       - name: 'Setup Gradle'
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -31,18 +32,20 @@ jobs:
           build-scan-terms-of-use-agree: "yes"
       - name: 'Make gradlew executable'
         run: chmod +x ./gradlew
+
       - name: 'Validate Gradle wrapper'
         uses: gradle/actions/wrapper-validation@v4
 
-      - name: 'Build'
-        run: ./gradlew --scan clean build
+      - name: Build
+        run: ./gradlew --scan build
 
-      - name: 'Release'
-        run: ./gradlew --scan publish jreleaserPublish
-        env:
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
-          JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}
-          JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          JRELEASER_MAVENCENTRAL_SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+      - name: Publish
+        run: ./gradlew --scan publish jreleaserFullRelease
+
+    env:
+      JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+      JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}
+      JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+      JRELEASER_MAVENCENTRAL_SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
