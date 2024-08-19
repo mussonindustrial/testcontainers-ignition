@@ -1,5 +1,6 @@
 # testcontainers-ignition [<img src="https://cdn.mussonindustrial.com/files/public/images/emblem.svg" alt="Musson Industrial Logo" width="90" height="40" align="right">][testcontainers-ignition]
 
+[![Release](https://img.shields.io/maven-central/v/com.mussonindustrial/testcontainers-ignition)]()
 [![Build](https://github.com/mussonindustrial/testcontainers-ignition/actions/workflows/build.yml/badge.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mussonindustrial/embr/blob/main/LICENSE)
 
@@ -9,9 +10,23 @@ This project is a Testcontainers implementation for [Ignition by Inductive Autom
 
 
 
-## Install
+## Include
+
+### Gradle
 ```kotlin
-// TODO: Publish to maven central.
+// build.gradle.kts
+dependencies {
+    testImplementation("com.mussonindustrial:testcontainers-ignition:0.1.0")
+}
+```
+
+### Maven
+```
+<dependency>
+    <groupId>com.mussonindustrial</groupId>
+    <artifactId>testcontainers-ignition</artifactId>
+    <version>0.1.0</version>
+</dependency>
 ```
 
 ## Usage
