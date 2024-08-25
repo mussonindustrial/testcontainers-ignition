@@ -26,6 +26,7 @@ dependencies {
     <groupId>com.mussonindustrial</groupId>
     <artifactId>testcontainers-ignition</artifactId>
     <version>0.1.0</version>
+    <scope>test</scope>
 </dependency>
 ```
 
