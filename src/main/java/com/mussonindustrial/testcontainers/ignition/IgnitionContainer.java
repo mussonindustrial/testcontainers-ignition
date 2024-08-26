@@ -382,7 +382,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @return the mapped gateway HTTPS port.
      */
     @SuppressWarnings("unused")
-    public int getMappedGatewaySSLPort() {
+    public int getMappedGatewaySslPort() {
         return getMappedPort(GATEWAY_SSL_PORT);
     }
 
@@ -435,7 +435,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public String getGatewayUrl(boolean ssl) {
         String mode = ssl ? "https" : "http";
-        Integer port = ssl ? getMappedGatewaySSLPort() : getMappedGatewayPort();
+        Integer port = ssl ? getMappedGatewaySslPort() : getMappedGatewayPort();
         return String.format("%s://%s:%d", mode, getHost(), port);
     }
 
