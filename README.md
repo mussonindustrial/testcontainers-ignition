@@ -1,6 +1,7 @@
 # testcontainers-ignition [<img src="https://cdn.mussonindustrial.com/files/public/images/emblem.svg" alt="Musson Industrial Logo" width="90" height="40" align="right">][testcontainers-ignition]
 
 [![Release](https://img.shields.io/maven-central/v/com.mussonindustrial/testcontainers-ignition)](https://central.sonatype.com/artifact/com.mussonindustrial/testcontainers-ignition)
+[![javadoc](https://javadoc.io/badge2/com.mussonindustrial/testcontainers-ignition/javadoc.svg)](https://javadoc.io/doc/com.mussonindustrial/testcontainers-ignition)
 [![Build](https://github.com/mussonindustrial/testcontainers-ignition/actions/workflows/build.yml/badge.svg)](https://github.com/mussonindustrial/testcontainers-ignition/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mussonindustrial/embr/blob/main/LICENSE)
 
