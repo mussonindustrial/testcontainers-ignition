@@ -125,7 +125,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param port the port to expose.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
-    public IgnitionContainer withExposedPort(int port) {
+    @SuppressWarnings("unused")
+    public IgnitionContainer withAdditionalExposedPort(int port) {
         checkNotRunning();
         this.addExposedPort(port);
         return self();
