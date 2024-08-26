@@ -1,28 +1,26 @@
 package com.mussonindustrial.testcontainers.ignition;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import java.io.FileNotFoundException;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
-import java.io.FileNotFoundException;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.stream.Collectors;
-
-
 /**
  * Testcontainers implementation for Ignition.
- * <p>
- * Supported image: {@code inductiveautomation/ignition}
- * <p>
- * Exposed ports:
+ *
+ * <p> Supported image: {@code inductiveautomation/ignition}
+ * <p> Exposed ports:
+ *
  * <ul>
- *     <li>Gateway: 8080</li>
- *     <li>Gateway (SSL): 8043</li>
- *     <li>GAN: 8060</li>
- *     <li>JVM Debugger: 8000</li>
+ * <li>Gateway: 8080
+ * <li>Gateway (SSL): 8043
+ * <li>GAN: 8060
+ * <li>JVM Debugger: 8000
  * </ul>
  */
 public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
@@ -68,10 +66,9 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private String licenseKey;
 
-
-
     /**
      * Creates a new Ignition container with the default image and version.
+     *
      * @deprecated use {@link #IgnitionContainer(DockerImageName)} instead
      */
     @Deprecated
@@ -90,6 +87,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     /**
      * Create a new Ignition container with the specified image name.
+     *
      * @param dockerImageName the image name that should be used.
      */
     public IgnitionContainer(final DockerImageName dockerImageName) {
@@ -155,6 +153,32 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     /**
      * Set a gateway backup file (*.gwbk) to restore from.
+     * Restores into the enabled state.
+     *
+     * @param path the path to the gateway backup file.
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if the gateway backup does not exist.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withGatewayBackup(Path path) throws FileNotFoundException {
+        return this.withGatewayBackup(path, false);
+    }
+
+    /**
+     * Set a gateway backup file (*.gwbk) to restore from.
+     * Restores into the enabled state.
+     *
+     * @param path the path to the gateway backup file.
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if the gateway backup does not exist.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withGatewayBackup(String path) throws FileNotFoundException {
+        return this.withGatewayBackup(path, false);
+    }
+
+    /**
+     * Set a gateway backup file (*.gwbk) to restore from.
      *
      * @param path the path to the gateway backup file.
      * @param restoreDisabled true to restore to a disabled state.
@@ -164,7 +188,6 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withGatewayBackup(Path path, boolean restoreDisabled) throws FileNotFoundException {
         checkNotRunning();
-
 
         if (!path.toFile().exists()) {
             throw new FileNotFoundException(String.format("gateway backup '%s' does not exist", path));
@@ -263,7 +286,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     public IgnitionContainer withThirdPartyModule(Path... paths) throws FileNotFoundException {
         checkNotRunning();
 
-        for (Path path: paths) {
+        for (Path path : paths) {
             if (!path.toFile().exists()) {
                 throw new FileNotFoundException(String.format("module '%s' does not exist", path));
             }
@@ -384,6 +407,16 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
+     * Get the mapped OPC-UA server port.
+     *
+     * @return the mapped OPC-USA server port.
+     */
+    @SuppressWarnings("unused")
+    public int getMappedOpcUaPort() {
+        return getMappedPort(OPCUA_PORT);
+    }
+
+    /**
      * Get the URL of the gateway web interface (using HTTP).
      *
      * @return the URL of the gateway web interface.
@@ -395,8 +428,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     /**
      * Get the URL of the gateway web interface.
-     * @param useHttps use HTTPS when `true`
      *
+     * @param useHttps use HTTPS when `true`
      * @return the URL of the gateway web interface.
      */
     @SuppressWarnings("unused")
@@ -407,7 +440,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
-     * Checks if already running and if so raises an exception to prevent too-late setters.
+     * Checks if already running and if so raises an exception to prevent too-late
+     * setters.
      */
     private void checkNotRunning() {
         if (isRunning()) {
@@ -451,9 +485,11 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     private void mapThirdPartyModules() {
-        for (Path path: thirdPartyModules) {
+        for (Path path : thirdPartyModules) {
             MountableFile file = MountableFile.forHostPath(path);
-            String containerPath = Path.of(INSTALL_DIR, "user-lib", "modules", path.toFile().getName()).toString();
+            String containerPath = Path.of(
+                            INSTALL_DIR, "user-lib", "modules", path.toFile().getName())
+                    .toString();
             this.withCopyFileToContainer(file, containerPath);
         }
     }
@@ -471,7 +507,9 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
         map.put("GATEWAY_HTTPS_PORT", String.valueOf(GATEWAY_SSL_PORT));
 
         if (gatewayBackup != null) map.put("GATEWAY_RESTORE_DISABLED", String.valueOf(restoreDisabled));
-        map.put("GATEWAY_MODULES_ENABLED", modules.stream().map(Objects::toString).collect(Collectors.joining(",")));
+        map.put(
+                "GATEWAY_MODULES_ENABLED",
+                modules.stream().map(Objects::toString).collect(Collectors.joining(",")));
 
         map.put("IGNITION_EDITION", edition.toString());
         if (gid != null) map.put("IGNITION_GID", gid.toString());
@@ -494,5 +532,4 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     protected void containerIsStarted(final InspectContainerResponse containerInfo) {
         logger().info("Ignition container is ready! Gateway Web UI is available at: {}", getGatewayUrl());
     }
-
 }
