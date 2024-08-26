@@ -33,15 +33,13 @@ dependencies {
 
 ## Usage
 ```java
-void createIgnitionGateway() {
-    try (
-            IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
-                    .withCredentials("myUsername", "myPassword")
-                    .withEdition(GatewayEdition.STANDARD)
-                    .withGatewayBackup("./path/to/backup.gwbk", false)
-                    .withModule(Module.PERSPECTIVE)
-                    .withThirdPartyModule("./path/to/module.modl")
-    ) {
+void createIgnitionGateway() throws FileNotFoundException {
+    try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+            .withCredentials("myUsername", "myPassword")
+            .withEdition(GatewayEdition.STANDARD)
+            .withGatewayBackup("./path/to/backup.gwbk")
+            .withModules(Module.PERSPECTIVE)
+            .withThirdPartyModules("./path/to/module.modl")) {
         ignition.start();
         String url = ignition.getGatewayUrl();
         // ... do something with your gateway!
