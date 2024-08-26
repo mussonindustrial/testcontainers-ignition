@@ -15,12 +15,12 @@ import org.testcontainers.utility.MountableFile;
  *
  * <p> Supported image: {@code inductiveautomation/ignition}
  * <p> Exposed ports:
- *
  * <ul>
- * <li>Gateway: 8080
- * <li>Gateway (SSL): 8043
- * <li>GAN: 8060
- * <li>JVM Debugger: 8000
+ * <li>Gateway: 8080</li>
+ * <li>Gateway (SSL): 8043</li>
+ * <li>GAN: 8060</li>
+ * <li>OPC-UA Server: 62541</li>
+ * <li>JVM Debugger: 8000</li>
  * </ul>
  */
 public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
