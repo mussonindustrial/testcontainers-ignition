@@ -30,7 +30,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     private static final Integer GATEWAY_PORT = 8088;
     private static final Integer GATEWAY_SSL_PORT = 8043;
     private static final Integer GAN_PORT = 8060;
-    private static final Integer OPCUA_PORT = 8000;
+    private static final Integer OPCUA_PORT = 62541;
     private static final Integer DEBUG_PORT = 8000;
     private static final String INSTALL_DIR = "/usr/local/bin/ignition";
 
