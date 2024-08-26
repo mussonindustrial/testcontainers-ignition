@@ -269,8 +269,9 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withModule(Module... modules) {
+    public IgnitionContainer withModules(Module... modules) {
         checkNotRunning();
+        this.modules.clear();
         this.modules.addAll(List.of(modules));
         return self();
     }
@@ -283,8 +284,9 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @throws FileNotFoundException if a module path does not exist.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withThirdPartyModule(Path... paths) throws FileNotFoundException {
+    public IgnitionContainer withThirdPartyModules(Path... paths) throws FileNotFoundException {
         checkNotRunning();
+        this.thirdPartyModules.clear();
 
         for (Path path : paths) {
             if (!path.toFile().exists()) {
@@ -303,8 +305,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @return this {@link IgnitionContainer} for chaining purposes.
      * @throws FileNotFoundException if a module path does not exist.
      */
-    public IgnitionContainer withThirdPartyModule(String... paths) throws FileNotFoundException {
-        return this.withThirdPartyModule(Arrays.stream(paths).map(Path::of).toArray(Path[]::new));
+    public IgnitionContainer withThirdPartyModules(String... paths) throws FileNotFoundException {
+        return this.withThirdPartyModules(Arrays.stream(paths).map(Path::of).toArray(Path[]::new));
     }
 
     /**
