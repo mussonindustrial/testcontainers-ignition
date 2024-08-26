@@ -117,6 +117,22 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
+     * Add an exposed port to the container.
+     *
+     * <p>After the container is started, the mapped port can be retrieved using the
+     * {@link #getMappedPort(int)} method.
+     *
+     * @param port the port to expose.
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withAdditionalExposedPort(int port) {
+        checkNotRunning();
+        this.addExposedPort(port);
+        return self();
+    }
+
+    /**
      * Set a gateway backup file (*.gwbk) to restore from.
      *
      * @param path the path to the gateway backup file.
