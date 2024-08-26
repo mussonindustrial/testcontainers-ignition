@@ -429,13 +429,13 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     /**
      * Get the URL of the gateway web interface.
      *
-     * @param useHttps use HTTPS when `true`
+     * @param ssl use HTTPS when `true`
      * @return the URL of the gateway web interface.
      */
     @SuppressWarnings("unused")
-    public String getGatewayUrl(boolean useHttps) {
-        String mode = useHttps ? "https" : "http";
-        Integer port = useHttps ? getMappedGatewaySSLPort() : getMappedGatewayPort();
+    public String getGatewayUrl(boolean ssl) {
+        String mode = ssl ? "https" : "http";
+        Integer port = ssl ? getMappedGatewaySSLPort() : getMappedGatewayPort();
         return String.format("%s://%s:%d", mode, getHost(), port);
     }
 
