@@ -13,25 +13,35 @@ import org.testcontainers.utility.MountableFile;
 /**
  * Testcontainers implementation for Ignition.
  *
- * <p> Supported image: {@code inductiveautomation/ignition}
- * <p> Exposed ports:
+ * <p>
+ * Supported image: {@code inductiveautomation/ignition}
+ * <p>
+ * Exposed ports:
  * <ul>
- * <li>Gateway: 8080</li>
- * <li>Gateway (SSL): 8043</li>
- * <li>GAN: 8060</li>
- * <li>OPC-UA Server: 62541</li>
- * <li>JVM Debugger: 8000</li>
+ *      <li>Gateway: 8080</li>
+ *      <li>Gateway (SSL): 8043</li>
+ *      <li>Gateway Area Network: 8060</li>
+ *      <li>OPC-UA Server: 62541</li>
+ *      <li>JVM Debugger: 8000</li>
  * </ul>
  */
 public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private static final DockerImageName DEFAULT_IMAGE_NAME = DockerImageName.parse("inductiveautomation/ignition");
+
+    @Deprecated
     private static final String DEFAULT_TAG = "8.1.33";
+
     private static final Integer GATEWAY_PORT = 8088;
+
     private static final Integer GATEWAY_SSL_PORT = 8043;
+
     private static final Integer GAN_PORT = 8060;
+
     private static final Integer OPCUA_PORT = 62541;
+
     private static final Integer DEBUG_PORT = 8000;
+
     private static final String INSTALL_DIR = "/usr/local/bin/ignition";
 
     private String username = "admin";
@@ -160,8 +170,20 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @throws FileNotFoundException if the gateway backup does not exist.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withGatewayBackup(Path path) throws FileNotFoundException {
+    public IgnitionContainer withGatewayBackup(String path) throws FileNotFoundException {
         return this.withGatewayBackup(path, false);
+    }
+
+    /**
+     * Set a gateway backup file (*.gwbk) to restore from.
+     *
+     * @param path the path to the gateway backup file.
+     * @param restoreDisabled true to restore to a disabled state.
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if the gateway backup does not exist.
+     */
+    public IgnitionContainer withGatewayBackup(String path, boolean restoreDisabled) throws FileNotFoundException {
+        return this.withGatewayBackup(Path.of(path), restoreDisabled);
     }
 
     /**
@@ -173,7 +195,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @throws FileNotFoundException if the gateway backup does not exist.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withGatewayBackup(String path) throws FileNotFoundException {
+    public IgnitionContainer withGatewayBackup(Path path) throws FileNotFoundException {
         return this.withGatewayBackup(path, false);
     }
 
@@ -196,18 +218,6 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
         this.gatewayBackup = path;
         this.restoreDisabled = restoreDisabled;
         return self();
-    }
-
-    /**
-     * Set a gateway backup file (*.gwbk) to restore from.
-     *
-     * @param path the path to the gateway backup file.
-     * @param restoreDisabled true to restore to a disabled state.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if the gateway backup does not exist.
-     */
-    public IgnitionContainer withGatewayBackup(String path, boolean restoreDisabled) throws FileNotFoundException {
-        return this.withGatewayBackup(Path.of(path), restoreDisabled);
     }
 
     /**
@@ -455,17 +465,13 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     protected void configure() {
         super.configure();
 
-        this.withEnv(getEnvironmentVariables());
+        addCommands();
+        addEnvironmentVariables();
 
         exposePorts();
 
         mapGatewayBackup();
         mapThirdPartyModules();
-
-        if (debugMode) this.withCommand("-d");
-        if (maxMemory != null) this.withCommand("-m", maxMemory);
-        if (name != null) this.withCommand("-n", name);
-        if (gatewayBackup != null) this.withCommand("-r", "/restore.gwbk");
     }
 
     private void exposePorts() {
@@ -496,33 +502,38 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
         }
     }
 
-    private Map<String, String> getEnvironmentVariables() {
-        Map<String, String> map = new HashMap<>();
-        map.put("ACCEPT_IGNITION_EULA", "Y");
-        map.put("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
+    private void addCommands() {
+        if (debugMode) this.withCommand("-d");
+        if (maxMemory != null) this.withCommand("-m", maxMemory);
+        if (name != null) this.withCommand("-n", name);
+        if (gatewayBackup != null) this.withCommand("-r", "/restore.gwbk");
+    }
 
-        map.put("GATEWAY_ADMIN_USERNAME", username);
-        map.put("GATEWAY_ADMIN_PASSWORD", password);
+    private void addEnvironmentVariables() {
+        addEnv("ACCEPT_IGNITION_EULA", "Y");
+        addEnv("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
+        addEnv("GATEWAY_ADMIN_USERNAME", username);
+        addEnv("GATEWAY_ADMIN_PASSWORD", password);
 
-        map.put("GATEWAY_GAN_PORT", String.valueOf(GAN_PORT));
-        map.put("GATEWAY_HTTP_PORT", String.valueOf(GATEWAY_PORT));
-        map.put("GATEWAY_HTTPS_PORT", String.valueOf(GATEWAY_SSL_PORT));
+        addEnv("GATEWAY_GAN_PORT", String.valueOf(GAN_PORT));
+        addEnv("GATEWAY_HTTP_PORT", String.valueOf(GATEWAY_PORT));
+        addEnv("GATEWAY_HTTPS_PORT", String.valueOf(GATEWAY_SSL_PORT));
 
-        if (gatewayBackup != null) map.put("GATEWAY_RESTORE_DISABLED", String.valueOf(restoreDisabled));
-        map.put(
-                "GATEWAY_MODULES_ENABLED",
-                modules.stream().map(Objects::toString).collect(Collectors.joining(",")));
+        if (gatewayBackup != null) addEnv("GATEWAY_RESTORE_DISABLED", String.valueOf(restoreDisabled));
+        addEnv("GATEWAY_MODULES_ENABLED", getEnabledModulesString());
 
-        map.put("IGNITION_EDITION", edition.toString());
-        if (gid != null) map.put("IGNITION_GID", gid.toString());
-        if (uid != null) map.put("IGNITION_UID", uid.toString());
+        addEnv("IGNITION_EDITION", edition.toString());
+        if (gid != null) addEnv("IGNITION_GID", gid.toString());
+        if (uid != null) addEnv("IGNITION_UID", uid.toString());
 
-        if (activationToken != null) map.put("IGNITION_ACTIVATION_TOKEN", activationToken);
-        if (licenseKey != null) map.put("IGNITION_LICENSE_KEY", licenseKey);
+        if (activationToken != null) addEnv("IGNITION_ACTIVATION_TOKEN", activationToken);
+        if (licenseKey != null) addEnv("IGNITION_LICENSE_KEY", licenseKey);
 
-        map.put("TZ", timezone);
+        addEnv("TZ", timezone);
+    }
 
-        return map;
+    private String getEnabledModulesString() {
+        return modules.stream().map(Objects::toString).collect(Collectors.joining(","));
     }
 
     @Override
