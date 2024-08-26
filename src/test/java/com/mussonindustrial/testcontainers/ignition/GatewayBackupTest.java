@@ -15,8 +15,7 @@ public class GatewayBackupTest {
     @Test
     public void useGatewayBackup() throws FileNotFoundException {
         try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
-                .withGatewayBackup("./src/test/resources/backup.gwbk", false)
-                .withExposedPorts(500)) {
+                .withGatewayBackup("./src/test/resources/backup.gwbk", false)) {
             ignition.start();
         }
     }
