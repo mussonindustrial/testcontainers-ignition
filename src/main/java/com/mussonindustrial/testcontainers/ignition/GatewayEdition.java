@@ -1,25 +1,18 @@
 package com.mussonindustrial.testcontainers.ignition;
 
-/**
- * Gateway Editions
- */
+/** Gateway Editions */
 public enum GatewayEdition {
-    /**
-     * Standard Edition
-    */
+    /** Standard Edition */
     STANDARD("standard"),
 
-    /**
-     * Edge Edition
-     */
+    /** Edge Edition */
     EDGE("edge"),
 
-    /**
-     * Maker Edition
-     */
+    /** Maker Edition */
     MAKER("maker");
 
     private final String value;
+
     GatewayEdition(String value) {
         this.value = value;
     }

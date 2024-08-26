@@ -5,6 +5,7 @@ plugins {
     `maven-publish`
     signing
     alias(libs.plugins.jreleaser)
+    alias(libs.plugins.spotless)
 }
 
 group = "com.mussonindustrial"
@@ -27,6 +28,18 @@ java {
     sourceCompatibility = JavaVersion.VERSION_17
     withJavadocJar()
     withSourcesJar()
+}
+
+spotless {
+    java {
+        importOrder()
+        removeUnusedImports()
+        palantirJavaFormat()
+    }
+}
+
+tasks.build {
+    dependsOn(tasks.spotlessCheck)
 }
 
 tasks.withType(Test::class).configureEach {

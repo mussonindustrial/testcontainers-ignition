@@ -1,40 +1,84 @@
 package com.mussonindustrial.testcontainers.ignition;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import java.io.FileNotFoundException;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.shaded.org.apache.commons.lang3.ArrayUtils;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
-
 /**
  * Testcontainers implementation for Ignition.
+ *
  * <p>
  * Supported image: {@code inductiveautomation/ignition}
  * <p>
  * Exposed ports:
  * <ul>
- *     <li>Gateway (HTTP): 8080</li>
- *     <li>Gateway (HTTPS): 8043</li>
- *     <li>GAN: 8060</li>
+ *      <li>Gateway: 8080</li>
+ *      <li>Gateway (SSL): 8043</li>
+ *      <li>Gateway Area Network: 8060</li>
+ *      <li>OPC-UA Server: 62541</li>
+ *      <li>JVM Debugger: 8000</li>
  * </ul>
  */
 public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private static final DockerImageName DEFAULT_IMAGE_NAME = DockerImageName.parse("inductiveautomation/ignition");
+
+    @Deprecated
     private static final String DEFAULT_TAG = "8.1.33";
 
-    private final EnvVariables env = new EnvVariables();
-    private final RuntimeArguments runtime = new RuntimeArguments();
+    private static final Integer GATEWAY_PORT = 8088;
+
+    private static final Integer GATEWAY_SSL_PORT = 8043;
+
+    private static final Integer GAN_PORT = 8060;
+
+    private static final Integer OPCUA_PORT = 62541;
+
+    private static final Integer DEBUG_PORT = 8000;
+
+    private static final String INSTALL_DIR = "/usr/local/bin/ignition";
+
+    private String username = "admin";
+
+    private String password = "password";
+
+    private Integer uid;
+
+    private Integer gid;
+
+    private String name = "testcontainers-ignition";
+
+    private GatewayEdition edition = GatewayEdition.STANDARD;
+
+    private String timezone = "Etc/UTC";
+
+    private String maxMemory;
+
+    private final Set<Module> modules = new HashSet<>();
+
+    private final Set<Path> thirdPartyModules = new HashSet<>();
+
+    private boolean quickStartEnabled = false;
+
+    private Boolean debugMode = false;
+
+    private Path gatewayBackup;
+
+    private boolean restoreDisabled = false;
+
+    private String activationToken;
+
+    private String licenseKey;
 
     /**
      * Creates a new Ignition container with the default image and version.
+     *
      * @deprecated use {@link #IgnitionContainer(DockerImageName)} instead
      */
     @Deprecated
@@ -53,6 +97,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     /**
      * Create a new Ignition container with the specified image name.
+     *
      * @param dockerImageName the image name that should be used.
      */
     public IgnitionContainer(final DockerImageName dockerImageName) {
@@ -71,7 +116,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withActivationToken(String token) {
         checkNotRunning();
-        env.setIgnitionActivationToken(token);
+        this.activationToken = token;
         return self();
     }
 
@@ -85,8 +130,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withCredentials(final String username, final String password) {
         checkNotRunning();
-        env.setGatewayAdminUsername(username);
-        env.setGatewayAdminPassword(username);
+        this.username = username;
+        this.password = password;
         return self();
     }
 
@@ -99,7 +144,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withDebugMode(boolean debugMode) {
         checkNotRunning();
-        runtime.setDebugMode(debugMode);
+        this.debugMode = debugMode;
         return self();
     }
 
@@ -112,7 +157,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withEdition(GatewayEdition edition) {
         checkNotRunning();
-        env.setIgnitionEdition(edition);
+        this.edition = edition;
         return self();
     }
 
@@ -134,17 +179,60 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     /**
      * Set a gateway backup file (*.gwbk) to restore from.
+     * Restores into the enabled state.
+     *
+     * @param path the path to the gateway backup file.
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if the gateway backup does not exist.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withGatewayBackup(String path) throws FileNotFoundException {
+        return this.withGatewayBackup(path, false);
+    }
+
+    /**
+     * Set a gateway backup file (*.gwbk) to restore from.
      *
      * @param path the path to the gateway backup file.
      * @param restoreDisabled true to restore to a disabled state.
      * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if the gateway backup does not exist.
+     */
+    public IgnitionContainer withGatewayBackup(String path, boolean restoreDisabled) throws FileNotFoundException {
+        return this.withGatewayBackup(Path.of(path), restoreDisabled);
+    }
+
+    /**
+     * Set a gateway backup file (*.gwbk) to restore from.
+     * Restores into the enabled state.
+     *
+     * @param path the path to the gateway backup file.
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if the gateway backup does not exist.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withGatewayBackup(String path, boolean restoreDisabled) {
+    public IgnitionContainer withGatewayBackup(Path path) throws FileNotFoundException {
+        return this.withGatewayBackup(path, false);
+    }
+
+    /**
+     * Set a gateway backup file (*.gwbk) to restore from.
+     *
+     * @param path the path to the gateway backup file.
+     * @param restoreDisabled true to restore to a disabled state.
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if the gateway backup does not exist.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withGatewayBackup(Path path, boolean restoreDisabled) throws FileNotFoundException {
         checkNotRunning();
-        runtime.setRestorePath("/restore.gwbk");
-        this.withCopyFileToContainer(MountableFile.forHostPath(path), "/restore.gwbk");
-        env.setGatewayRestoreDisabled(restoreDisabled);
+
+        if (!path.toFile().exists()) {
+            throw new FileNotFoundException(String.format("gateway backup '%s' does not exist", path));
+        }
+
+        this.gatewayBackup = path;
+        this.restoreDisabled = restoreDisabled;
         return self();
     }
 
@@ -157,7 +245,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withGatewayName(String name) {
         checkNotRunning();
-        runtime.setName(name);
+        this.name = name;
         return self();
     }
 
@@ -170,7 +258,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withGid(int gid) {
         checkNotRunning();
-        env.setIgnitionGid(gid);
+        this.gid = gid;
         return self();
     }
 
@@ -183,93 +271,80 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withLicenseKey(String key) {
         checkNotRunning();
-        env.setIgnitionLicenseKey(key);
+        this.licenseKey = key;
         return self();
     }
 
     /**
      * Set the maximum memory usage of the gateway.
      *
-     * @param memoryMax the maximum memory to use.
+     * @param maxMemory the maximum memory to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withMaxMemory(int memoryMax) {
+    public IgnitionContainer withMaxMemory(String maxMemory) {
         checkNotRunning();
-        runtime.setMemoryMax(memoryMax);
+        this.maxMemory = maxMemory;
         return self();
     }
 
     /**
-     * Include a module when initializing the gateway.
-     *
-     * @param module the module to add.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withModule(Module module) {
-        checkNotRunning();
-        env.addGatewayModule(module);
-        return self();
-    }
-
-    /**
-     * Include a list of modules when initializing the gateway.
+     * Include modules when initializing the gateway.
      *
      * @param modules the modules to add.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withModules(Module[] modules) {
+    public IgnitionContainer withModules(Module... modules) {
         checkNotRunning();
-        Arrays.stream(modules).forEach(env::addGatewayModule);
+        this.modules.clear();
+        this.modules.addAll(List.of(modules));
         return self();
     }
 
     /**
-     * Include a third party module when initializing the gateway.
+     * Include third party modules when initializing the gateway.
      *
-     * @param path the path to the module file to add.
+     * @param paths the paths to the module files to add.
      * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if a module path does not exist.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withThirdPartyModule(String path) {
+    public IgnitionContainer withThirdPartyModules(Path... paths) throws FileNotFoundException {
         checkNotRunning();
-        File f = new File(path);
-        String containerPath = "/usr/local/bin/ignition/user-lib/modules/" + f.getName();
-        this.withCopyFileToContainer(MountableFile.forHostPath(path), containerPath);
-        env.addThirdPartyModule(path);
+        this.thirdPartyModules.clear();
+
+        for (Path path : paths) {
+            if (!path.toFile().exists()) {
+                throw new FileNotFoundException(String.format("module '%s' does not exist", path));
+            }
+            this.thirdPartyModules.add(path);
+        }
+
         return self();
     }
 
     /**
-     * Include a list of third party modules when initializing the gateway.
+     * Include third party modules when initializing the gateway.
      *
-     * @param paths the paths to the modules files to add.
+     * @param paths the paths to the module files to add.
      * @return this {@link IgnitionContainer} for chaining purposes.
+     * @throws FileNotFoundException if a module path does not exist.
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withThirdPartyModules(String[] paths) {
-        checkNotRunning();
-        Arrays.stream(paths).forEach((path) -> {
-            File f = new File(path);
-            String containerPath = "/usr/local/bin/ignition/user-lib/modules/" + f.getName();
-            this.withCopyFileToContainer(MountableFile.forHostPath(path), containerPath);
-            env.addThirdPartyModule(path);
-        });
-        return self();
+    public IgnitionContainer withThirdPartyModules(String... paths) throws FileNotFoundException {
+        return this.withThirdPartyModules(Arrays.stream(paths).map(Path::of).toArray(Path[]::new));
     }
 
     /**
      * Set quick start mode.
      *
-     * @param quickStart the debug mode setting to use.
+     * @param quickStartEnabled the quickstart mode setting to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withQuickStart(boolean quickStart) {
+    public IgnitionContainer withQuickStart(boolean quickStartEnabled) {
         checkNotRunning();
-        env.setDisableQuickStart(!quickStart);
+        this.quickStartEnabled = quickStartEnabled;
         return self();
     }
 
@@ -282,7 +357,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withTimezone(String timezone) {
         checkNotRunning();
-        env.setTimezone(timezone);
+        this.timezone = timezone;
         return self();
     }
 
@@ -295,7 +370,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public IgnitionContainer withUid(int uid) {
         checkNotRunning();
-        env.setIgnitionUid(uid);
+        this.uid = uid;
         return self();
     }
 
@@ -306,7 +381,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      */
     @SuppressWarnings("unused")
     public String getUsername() {
-        return env.gatewayAdminUsername;
+        return username;
     }
 
     /**
@@ -316,7 +391,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      */
     @SuppressWarnings("unused")
     public String getPassword() {
-        return env.gatewayAdminPassword;
+        return password;
     }
 
     /**
@@ -325,8 +400,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @return the mapped gateway HTTP port.
      */
     @SuppressWarnings("unused")
-    public int getGatewayHttpPort() {
-        return getMappedPort(env.gatewayHttpPort);
+    public int getMappedGatewayPort() {
+        return getMappedPort(GATEWAY_PORT);
     }
 
     /**
@@ -335,8 +410,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @return the mapped gateway HTTPS port.
      */
     @SuppressWarnings("unused")
-    public int getGatewayHttpsPort() {
-        return getMappedPort(env.gatewayHttpsPort);
+    public int getMappedGatewaySslPort() {
+        return getMappedPort(GATEWAY_SSL_PORT);
     }
 
     /**
@@ -345,8 +420,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @return the mapped gateway GAN port.
      */
     @SuppressWarnings("unused")
-    public int getGatewayGanPort() {
-        return getMappedPort(env.gatewayGanPort);
+    public int getMappedGatewayGanPort() {
+        return getMappedPort(GAN_PORT);
     }
 
     /**
@@ -355,8 +430,18 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @return the mapped remote JVM debugging port.
      */
     @SuppressWarnings("unused")
-    public int getDebugPort() {
-        return getMappedPort(env.debugPort);
+    public int getMappedDebugPort() {
+        return getMappedPort(DEBUG_PORT);
+    }
+
+    /**
+     * Get the mapped OPC-UA server port.
+     *
+     * @return the mapped OPC-USA server port.
+     */
+    @SuppressWarnings("unused")
+    public int getMappedOpcUaPort() {
+        return getMappedPort(OPCUA_PORT);
     }
 
     /**
@@ -366,23 +451,25 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      */
     @SuppressWarnings("unused")
     public String getGatewayUrl() {
-        return String.format("http://%s:%d", getHost(), getGatewayHttpPort());
+        return String.format("http://%s:%d", getHost(), getMappedGatewayPort());
     }
 
     /**
      * Get the URL of the gateway web interface.
-     * @param useHttps use HTTPS when `true`
      *
+     * @param ssl use HTTPS when `true`
      * @return the URL of the gateway web interface.
      */
     @SuppressWarnings("unused")
-    public String getGatewayUrl(boolean useHttps) {
-        String mode = useHttps ? "https" : "http";
-        return String.format("%s://%s:%d", mode, getHost(), getGatewayHttpPort());
+    public String getGatewayUrl(boolean ssl) {
+        String mode = ssl ? "https" : "http";
+        Integer port = ssl ? getMappedGatewaySslPort() : getMappedGatewayPort();
+        return String.format("%s://%s:%d", mode, getHost(), port);
     }
 
     /**
-     * Checks if already running and if so raises an exception to prevent too-late setters.
+     * Checks if already running and if so raises an exception to prevent too-late
+     * setters.
      */
     private void checkNotRunning() {
         if (isRunning()) {
@@ -391,35 +478,78 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     @Override
-    public void start() {
-        this.waitingFor(Wait.forHealthcheck());
-        this.withEnv(env.toMap());
+    protected void configure() {
+        super.configure();
 
-        if (env.getGatewayHttpPort() != null) {
-            this.addExposedPort(env.getGatewayHttpPort());
-        }
-        if (env.getGatewayHttpsPort() != null) {
-            this.addExposedPort(env.getGatewayHttpsPort());
-        }
-        if (env.getGatewayGanPort() != null) {
-            this.addExposedPort(env.getGatewayGanPort());
-        }
+        addCommands();
+        addEnvironmentVariables();
 
-        if (runtime.getName() != null) {
-            this.withCommand("-n", runtime.getName());
-        }
-        if (runtime.getMemoryMax() != null) {
-            this.withCommand("-m", runtime.getMemoryMax().toString());
-        }
-        if (runtime.getRestorePath() != null) {
-            this.withCommand("-r", runtime.getRestorePath());
-        }
-        if (runtime.getDebugMode() != null && runtime.getDebugMode()) {
-            this.addExposedPort(env.getDebugPort());
-            this.withCommand("-d");
+        exposePorts();
+
+        mapGatewayBackup();
+        mapThirdPartyModules();
+    }
+
+    private void exposePorts() {
+        addExposedPorts(GATEWAY_PORT, GATEWAY_SSL_PORT);
+
+        if (modules.contains(Module.OPC_UA)) {
+            addExposedPorts(OPCUA_PORT);
         }
 
-        super.start();
+        if (debugMode) {
+            addExposedPorts(DEBUG_PORT);
+        }
+    }
+
+    private void mapGatewayBackup() {
+        if (gatewayBackup != null) {
+            this.withCopyFileToContainer(MountableFile.forHostPath(gatewayBackup.toString()), "/restore.gwbk");
+        }
+    }
+
+    private void mapThirdPartyModules() {
+        for (Path path : thirdPartyModules) {
+            MountableFile file = MountableFile.forHostPath(path);
+            String containerPath = Path.of(
+                            INSTALL_DIR, "user-lib", "modules", path.toFile().getName())
+                    .toString();
+            this.withCopyFileToContainer(file, containerPath);
+        }
+    }
+
+    private void addCommands() {
+        if (debugMode) this.withCommand("-d");
+        if (maxMemory != null) this.withCommand("-m", maxMemory);
+        if (name != null) this.withCommand("-n", name);
+        if (gatewayBackup != null) this.withCommand("-r", "/restore.gwbk");
+    }
+
+    private void addEnvironmentVariables() {
+        addEnv("ACCEPT_IGNITION_EULA", "Y");
+        addEnv("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
+        addEnv("GATEWAY_ADMIN_USERNAME", username);
+        addEnv("GATEWAY_ADMIN_PASSWORD", password);
+
+        addEnv("GATEWAY_GAN_PORT", String.valueOf(GAN_PORT));
+        addEnv("GATEWAY_HTTP_PORT", String.valueOf(GATEWAY_PORT));
+        addEnv("GATEWAY_HTTPS_PORT", String.valueOf(GATEWAY_SSL_PORT));
+
+        if (gatewayBackup != null) addEnv("GATEWAY_RESTORE_DISABLED", String.valueOf(restoreDisabled));
+        addEnv("GATEWAY_MODULES_ENABLED", getEnabledModulesString());
+
+        addEnv("IGNITION_EDITION", edition.toString());
+        if (gid != null) addEnv("IGNITION_GID", gid.toString());
+        if (uid != null) addEnv("IGNITION_UID", uid.toString());
+
+        if (activationToken != null) addEnv("IGNITION_ACTIVATION_TOKEN", activationToken);
+        if (licenseKey != null) addEnv("IGNITION_LICENSE_KEY", licenseKey);
+
+        addEnv("TZ", timezone);
+    }
+
+    private String getEnabledModulesString() {
+        return modules.stream().map(Objects::toString).collect(Collectors.joining(","));
     }
 
     @Override
@@ -429,111 +559,6 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     @Override
     protected void containerIsStarted(final InspectContainerResponse containerInfo) {
-        logger().info("Ignition container is ready! Gateway Web UI is available at {}", getGatewayUrl());
-    }
-
-    private static class EnvVariables {
-
-        private String timezone;
-        private Boolean gatewayRestoreDisabled;
-        private String gatewayAdminUsername = "admin";
-        private String gatewayAdminPassword = "password";
-        private final Integer gatewayHttpPort = 8088;
-        private final Integer gatewayHttpsPort = 8043;
-        private final Integer gatewayGanPort = 8060;
-
-        private final Integer debugPort = 8000;
-        private GatewayEdition ignitionEdition = GatewayEdition.STANDARD;
-        private String ignitionLicenseKey;
-        private String ignitionActivationToken;
-        private Module[] gatewayModules;
-        private String[] thirdPartyModules;
-        private Integer ignitionUid;
-        private Integer ignitionGid;
-        private Boolean disableQuickStart = true;
-
-        public void setTimezone(String timezone) { this.timezone = timezone; }
-
-        public void setGatewayRestoreDisabled(Boolean gatewayRestoreDisabled) { this.gatewayRestoreDisabled = gatewayRestoreDisabled; }
-
-        public void setGatewayAdminUsername(String gatewayAdminUsername) { this.gatewayAdminUsername = gatewayAdminUsername; }
-
-        public void setGatewayAdminPassword(String gatewayAdminPassword) { this.gatewayAdminPassword = gatewayAdminPassword; }
-
-        public Integer getGatewayHttpPort() { return gatewayHttpPort; }
-
-        public Integer getGatewayHttpsPort() { return gatewayHttpsPort; }
-
-        public Integer getGatewayGanPort() { return gatewayGanPort; }
-
-        public Integer getDebugPort() { return debugPort; }
-
-        public void setIgnitionEdition(GatewayEdition ignitionEdition) { this.ignitionEdition = ignitionEdition; }
-
-        public void setIgnitionLicenseKey(String ignitionLicenseKey) { this.ignitionLicenseKey = ignitionLicenseKey; }
-
-        public void setIgnitionActivationToken(String ignitionActivationToken) { this.ignitionActivationToken = ignitionActivationToken; }
-
-        public void addGatewayModule(Module moduleIdentifier) { this.gatewayModules =  ArrayUtils.add(gatewayModules, moduleIdentifier ); }
-
-        public void addThirdPartyModule(String thirdPartyModule) { this.thirdPartyModules =  ArrayUtils.add(thirdPartyModules, thirdPartyModule ); }
-
-
-        public void setIgnitionUid(Integer ignitionUid) { this.ignitionUid = ignitionUid; }
-
-        public void setIgnitionGid(Integer ignitionGid) { this.ignitionGid = ignitionGid; }
-
-        public void setDisableQuickStart(Boolean disableQuickStart) { this.disableQuickStart = disableQuickStart; }
-
-        public Map<String, String> toMap() {
-            Map<String, String> map = new HashMap<>();
-
-            String acceptIgnitionEula = "Y";
-            map.put("ACCEPT_IGNITION_EULA", acceptIgnitionEula);
-            if (disableQuickStart != null) map.put("DISABLE_QUICKSTART", disableQuickStart.toString());
-            if (gatewayAdminPassword != null) map.put("GATEWAY_ADMIN_PASSWORD", gatewayAdminPassword);
-            if (gatewayAdminUsername != null) map.put("GATEWAY_ADMIN_USERNAME", gatewayAdminUsername);
-            if (gatewayRestoreDisabled != null) map.put("GATEWAY_RESTORE_DISABLED", gatewayRestoreDisabled.toString());
-            map.put("GATEWAY_GAN_PORT", gatewayGanPort.toString());
-            map.put("GATEWAY_HTTP_PORT", gatewayHttpPort.toString());
-            map.put("GATEWAY_HTTPS_PORT", gatewayHttpsPort.toString());
-            if (ignitionEdition != null) map.put("IGNITION_EDITION", ignitionEdition.toString());
-            if (ignitionActivationToken != null) map.put("IGNITION_ACTIVATION_TOKEN", ignitionActivationToken);
-            if (ignitionGid != null) map.put("IGNITION_GID", ignitionGid.toString());
-            if (ignitionLicenseKey != null) map.put("IGNITION_LICENSE_KEY", ignitionLicenseKey);
-            if (ignitionUid != null) map.put("IGNITION_UID", ignitionUid.toString());
-            if (gatewayModules != null) map.put("GATEWAY_MODULES_ENABLED", arrayToString(gatewayModules));
-            if (timezone != null) map.put("TZ", timezone);
-
-            return map;
-        }
-
-        private String arrayToString(Object[] array) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < array.length; i++) {
-                sb.append(array[i].toString());
-                if (i < array.length - 1) {
-                    sb.append(",");
-                }
-            }
-            return sb.toString();
-        }
-    }
-
-
-    private static class RuntimeArguments {
-        private Boolean debugMode;
-        private String name;
-        private String restorePath;
-        private Integer memoryMax;
-
-        public Boolean getDebugMode() { return debugMode; }
-        public void setDebugMode(Boolean debugMode) { this.debugMode = debugMode; }
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public String getRestorePath() { return restorePath; }
-        public void setRestorePath(String restorePath) { this.restorePath = restorePath; }
-        public Integer getMemoryMax() { return memoryMax; }
-        public void setMemoryMax(Integer memoryMax) { this.memoryMax = memoryMax; }
+        logger().info("Ignition container is ready! Gateway Web UI is available at: {}", getGatewayUrl());
     }
 }

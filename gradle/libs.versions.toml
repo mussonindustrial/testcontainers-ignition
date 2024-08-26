@@ -4,6 +4,7 @@ junit-platform = "1.11.0"
 junit-jupiter = "5.11.0"
 slf4j = "2.0.16"
 jreleaser = "1.13.1"
+spotless = "6.25.0"
 
 [libraries]
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers"}
@@ -13,3 +14,4 @@ slf4j = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j"}
 
 [plugins]
 jreleaser = { id = "org.jreleaser", version.ref = "jreleaser" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
