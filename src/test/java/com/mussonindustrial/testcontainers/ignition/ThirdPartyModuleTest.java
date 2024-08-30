@@ -19,7 +19,8 @@ public class ThirdPartyModuleTest {
         try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
                 .withThirdPartyModules(
                         "./src/test/resources/Embr-EventStream-0.4.0.modl",
-                        "./src/test/resources/Embr-Thermodynamics-0.1.2.modl")) {
+                        "./src/test/resources/Embr-Thermodynamics-0.1.2.modl")
+                .acceptLicense()) {
 
             WaitAllStrategy waitStrategy = new WaitAllStrategy();
             waitStrategy = waitStrategy
@@ -37,8 +38,9 @@ public class ThirdPartyModuleTest {
         Path module = Path.of("./src/test/resources/not-a-valid-module.modl");
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
-            try (IgnitionContainer ignition =
-                    new IgnitionContainer("inductiveautomation/ignition:8.1.33").withThirdPartyModules(module)) {
+            try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+                    .withThirdPartyModules(module)
+                    .acceptLicense()) {
                 ignition.start();
             }
         });

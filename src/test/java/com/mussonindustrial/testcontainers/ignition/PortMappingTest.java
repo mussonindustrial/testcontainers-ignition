@@ -16,7 +16,8 @@ public class PortMappingTest {
 
     @Test
     public void workingMappedHttpPort() {
-        try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")) {
+        try (IgnitionContainer ignition =
+                new IgnitionContainer("inductiveautomation/ignition:8.1.33").acceptLicense()) {
             ignition.start();
             String url = ignition.getGatewayUrl();
             String statusPingUrl = url + "/StatusPing";
