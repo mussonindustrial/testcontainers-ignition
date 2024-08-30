@@ -15,7 +15,8 @@ public class GatewayBackupTest {
     @Test
     public void useGatewayBackup() throws FileNotFoundException {
         try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
-                .withGatewayBackup("./src/test/resources/backup.gwbk", false)) {
+                .withGatewayBackup("./src/test/resources/backup.gwbk", false)
+                .acceptLicense()) {
             ignition.start();
         }
     }
@@ -26,8 +27,9 @@ public class GatewayBackupTest {
         Path backup = Path.of("./src/test/resources/not-a-valid-backup.gwbk");
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
-            try (IgnitionContainer ignition =
-                    new IgnitionContainer("inductiveautomation/ignition:8.1.33").withGatewayBackup(backup, false)) {
+            try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+                    .withGatewayBackup(backup, false)
+                    .acceptLicense()) {
                 ignition.start();
             }
         });

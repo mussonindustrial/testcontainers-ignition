@@ -64,6 +64,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private final Set<Path> thirdPartyModules = new HashSet<>();
 
+    private boolean licenseAccepted = false;
+
     private boolean quickStartEnabled = false;
 
     private Boolean debugMode = false;
@@ -105,6 +107,18 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
         dockerImageName.assertCompatibleWith(DEFAULT_IMAGE_NAME);
 
         this.waitStrategy = Wait.forHealthcheck();
+    }
+
+    /**
+     * Automatically accept the Ignition EULA.
+     * @see <a href="https://inductiveautomation.com/ignition/license">https://inductiveautomation.com/ignition/license</a>
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer acceptLicense() {
+        checkNotRunning();
+        this.licenseAccepted = true;
+        return self();
     }
 
     /**
@@ -526,7 +540,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     private void addEnvironmentVariables() {
-        addEnv("ACCEPT_IGNITION_EULA", "Y");
+        if (licenseAccepted) addEnv("ACCEPT_IGNITION_EULA", "Y");
         addEnv("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
         addEnv("GATEWAY_ADMIN_USERNAME", username);
         addEnv("GATEWAY_ADMIN_PASSWORD", password);
