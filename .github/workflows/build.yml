@@ -44,5 +44,20 @@ jobs:
       - name: 'Validate Gradle wrapper'
         uses: gradle/actions/wrapper-validation@v4
 
+      - name: Restore Ignition Image Cache if it exists
+        id: cache-docker-ignition
+        uses: actions/cache@v3
+        with:
+          path: ci/cache/docker/ignition
+          key: cache-docker-ignition
+
+      - name: Update Ignition Image Cache if cache miss
+        if: steps.cache-docker-ignition.outputs.cache-hit != 'true'
+        run: docker pull inductiveautomation/ignition:8.1.33 && mkdir -p ci/cache/docker/ignition && docker image save inductiveautomation/ignition:8.1.33 --output ./ci/cache/docker/ignition/ignition-8.1.33.tar
+
+      - name: Use Ignition Image Cache if cache hit
+        if: steps.cache-docker-ignition.outputs.cache-hit == 'true'
+        run: docker image load --input ./ci/cache/docker/ignition/ignition-8.1.33.tar
+
       - name: 'Build'
         run: ./gradlew --scan build
