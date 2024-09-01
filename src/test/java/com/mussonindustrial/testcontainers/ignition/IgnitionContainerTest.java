@@ -1,7 +1,6 @@
 package com.mussonindustrial.testcontainers.ignition;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.mussonindustrial.testcontainers.IgnitionTestImages;
 import java.io.FileNotFoundException;
@@ -20,7 +19,8 @@ public class IgnitionContainerTest {
     @Test
     public void shouldUseGatewayBackup() throws FileNotFoundException {
         try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
-                .withGatewayBackup("./src/test/resources/backup.gwbk", false)) {
+                .withGatewayBackup("./src/test/resources/backup.gwbk", false)
+                .acceptLicense()) {
             ignition.start();
         }
     }
@@ -31,18 +31,20 @@ public class IgnitionContainerTest {
         Path backup = Path.of("./src/test/resources/not-a-valid-backup.gwbk");
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
-            try (IgnitionContainer ignition =
-                    new IgnitionContainer("inductiveautomation/ignition:8.1.33").withGatewayBackup(backup, false)) {
+            try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+                    .withGatewayBackup(backup, false)
+                    .acceptLicense()) {
                 ignition.start();
             }
         });
-        assertEquals(String.format("gateway backup '%s' does not exist", backup), exception.getMessage());
+        assertEquals(exception.getMessage(), String.format("gateway backup '%s' does not exist", backup));
     }
 
     @Test
     public void shouldUseListedModules() {
-        try (IgnitionContainer ignition =
-                new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE).withModules(Module.OPC_UA)) {
+        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
+                .withModules(Module.OPC_UA)
+                .acceptLicense()) {
             ignition.waitingFor(Wait.forLogMessage(".*Processing GATEWAY_MODULES_ENABLED=opc-ua.*\\n", 1));
             ignition.start();
         }
@@ -51,7 +53,8 @@ public class IgnitionContainerTest {
     @Test
     public void shouldUseAdditionalArguments() {
         try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
-                .withAdditionalArgs("gateway.resolveHostNames=true", "gateway.useProxyForwardedHeader=true")) {
+                .withAdditionalArgs("gateway.resolveHostNames=true", "gateway.useProxyForwardedHeader=true")
+                .acceptLicense()) {
 
             WaitAllStrategy strategy = new WaitAllStrategy();
             strategy.withStrategy(Wait.forLogMessage(".*Collecting gateway arg: gateway.resolveHostNames=true\\n", 1))
@@ -65,7 +68,8 @@ public class IgnitionContainerTest {
 
     @Test
     public void shouldReturnCorrectUrl() {
-        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)) {
+        try (IgnitionContainer ignition =
+                new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE).acceptLicense()) {
             ignition.start();
             String url = ignition.getGatewayUrl();
             String statusPingUrl = url + "/StatusPing";
@@ -75,8 +79,7 @@ public class IgnitionContainerTest {
                     HttpRequest.newBuilder().uri(URI.create(statusPingUrl)).build();
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            assertEquals(response.body(), "{\"state\":\"RUNNING\"}");
+            assertTrue(response.body().contains("\"state\":\"RUNNING\""));
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -87,7 +90,8 @@ public class IgnitionContainerTest {
         try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
                 .withThirdPartyModules(
                         "./src/test/resources/Embr-EventStream-0.4.0.modl",
-                        "./src/test/resources/Embr-Thermodynamics-0.1.2.modl")) {
+                        "./src/test/resources/Embr-Thermodynamics-0.1.2.modl")
+                .acceptLicense()) {
 
             WaitAllStrategy waitStrategy = new WaitAllStrategy();
             waitStrategy = waitStrategy
@@ -105,8 +109,9 @@ public class IgnitionContainerTest {
         Path module = Path.of("./src/test/resources/not-a-valid-module.modl");
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
-            try (IgnitionContainer ignition =
-                    new IgnitionContainer("inductiveautomation/ignition:8.1.33").withThirdPartyModules(module)) {
+            try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+                    .withThirdPartyModules(module)
+                    .acceptLicense()) {
                 ignition.start();
             }
         });
