@@ -7,6 +7,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+
+import com.mussonindustrial.testcontainers.IgnitionTestImages;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -16,7 +18,7 @@ public class PortMappingTest {
 
     @Test
     public void workingMappedHttpPort() {
-        try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")) {
+        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)) {
             ignition.start();
             String url = ignition.getGatewayUrl();
             String statusPingUrl = url + "/StatusPing";

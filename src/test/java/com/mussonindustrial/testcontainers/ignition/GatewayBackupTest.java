@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.FileNotFoundException;
 import java.nio.file.Path;
+
+import com.mussonindustrial.testcontainers.IgnitionTestImages;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -14,7 +16,7 @@ public class GatewayBackupTest {
 
     @Test
     public void useGatewayBackup() throws FileNotFoundException {
-        try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
                 .withGatewayBackup("./src/test/resources/backup.gwbk", false)) {
             ignition.start();
         }

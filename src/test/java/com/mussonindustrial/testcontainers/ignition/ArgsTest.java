@@ -1,5 +1,6 @@
 package com.mussonindustrial.testcontainers.ignition;
 
+import com.mussonindustrial.testcontainers.IgnitionTestImages;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -11,7 +12,7 @@ public class ArgsTest {
 
     @Test
     public void useModuleList() {
-        try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
                 .withAdditionalArgs("gateway.resolveHostNames=true", "gateway.useProxyForwardedHeader=true")) {
 
             WaitAllStrategy strategy = new WaitAllStrategy();
