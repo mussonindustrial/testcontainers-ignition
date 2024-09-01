@@ -37,8 +37,8 @@ void createIgnitionGateway() throws FileNotFoundException {
     try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
             .withCredentials("myUsername", "myPassword")
             .withEdition(GatewayEdition.STANDARD)
-            .withGatewayBackup("./path/to/backup.gwbk")
             .withModules(GatewayModule.PERSPECTIVE)
+            .withGatewayBackup("./path/to/backup.gwbk")
             .withThirdPartyModules("./path/to/module.modl")
             .acceptLicense()) {
         ignition.start();
