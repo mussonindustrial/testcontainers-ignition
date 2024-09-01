@@ -78,6 +78,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private String licenseKey;
 
+    private List<String> additionalArgs;
+
     /**
      * Creates a new Ignition container with the default image and version.
      *
@@ -389,6 +391,17 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
+     * Set supplemental JVM/Wrapper/Gateway arguments.
+     * @param additionalArgs one or more additional arguments.
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     */
+    public IgnitionContainer withAdditionalArgs(String... additionalArgs) {
+        checkNotRunning();
+        this.additionalArgs = List.of(additionalArgs);
+        return self();
+    }
+
+    /**
      * Get the gateway admin username.
      *
      * @return the gateway admin username.
@@ -495,8 +508,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     protected void configure() {
         super.configure();
 
-        addCommands();
-        addEnvironmentVariables();
+        applyCommands();
+        applyEnvironmentVariables();
 
         exposePorts();
 
@@ -532,14 +545,17 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
         }
     }
 
-    private void addCommands() {
-        if (debugMode) this.withCommand("-d");
-        if (maxMemory != null) this.withCommand("-m", maxMemory);
-        if (name != null) this.withCommand("-n", name);
-        if (gatewayBackup != null) this.withCommand("-r", "/restore.gwbk");
+    private void applyCommands() {
+        StringJoiner commands = new StringJoiner(" ");
+        if (debugMode) commands.add("-d");
+        if (maxMemory != null) commands.add("-m").add(maxMemory);
+        if (name != null) commands.add("-n").add(name);
+        if (gatewayBackup != null) commands.add("-r").add("/restore.gwbk");
+        if (additionalArgs != null) commands.add("--").add(String.join(" ", additionalArgs));
+        this.withCommand(commands.toString());
     }
 
-    private void addEnvironmentVariables() {
+    private void applyEnvironmentVariables() {
         if (licenseAccepted) addEnv("ACCEPT_IGNITION_EULA", "Y");
         addEnv("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
         addEnv("GATEWAY_ADMIN_USERNAME", username);
