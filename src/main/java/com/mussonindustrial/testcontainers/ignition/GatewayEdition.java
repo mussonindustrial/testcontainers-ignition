@@ -1,6 +1,6 @@
 package com.mussonindustrial.testcontainers.ignition;
 
-/** Gateway Editions */
+/** Ignition Gateway Editions */
 public enum GatewayEdition {
     /** Standard Edition */
     STANDARD("standard"),

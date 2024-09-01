@@ -32,7 +32,7 @@ public class IgnitionContainerTest {
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
             try (IgnitionContainer ignition =
-                    new IgnitionContainer("inductiveautomation/ignition:8.1.33").withGatewayBackup(backup, false)) {
+                    new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE).withGatewayBackup(backup, false)) {
                 ignition.start();
             }
         });
@@ -42,7 +42,7 @@ public class IgnitionContainerTest {
     @Test
     public void shouldUseListedModules() {
         try (IgnitionContainer ignition =
-                new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE).withModules(Module.OPC_UA)) {
+                new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE).withModules(StandardModule.OPC_UA)) {
             ignition.waitingFor(Wait.forLogMessage(".*Processing GATEWAY_MODULES_ENABLED=opc-ua.*\\n", 1));
             ignition.start();
         }
@@ -106,7 +106,7 @@ public class IgnitionContainerTest {
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
             try (IgnitionContainer ignition =
-                    new IgnitionContainer("inductiveautomation/ignition:8.1.33").withThirdPartyModules(module)) {
+                    new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE).withThirdPartyModules(module)) {
                 ignition.start();
             }
         });

@@ -1,7 +1,9 @@
 package com.mussonindustrial.testcontainers.ignition;
 
-/** Ignition Modules */
-public enum Module {
+/**
+ * Inductive Automation Ignition Modules
+ * */
+public enum StandardModule implements IgnitionModule {
     /** Alarm Notification Module */
     ALARM_NOTIFICATION("alarm-notification"),
 
@@ -88,8 +90,13 @@ public enum Module {
 
     private final String value;
 
-    Module(String value) {
+    StandardModule(String value) {
         this.value = value;
+    }
+
+    @Override
+    public String getIdentifier() {
+        return this.value;
     }
 
     @Override
