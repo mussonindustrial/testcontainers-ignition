@@ -555,7 +555,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
         this.withCommand(commands.toString());
     }
 
-    private void addEnvironmentVariables() {
+    private void applyEnvironmentVariables() {
         if (licenseAccepted) addEnv("ACCEPT_IGNITION_EULA", "Y");
         addEnv("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
         addEnv("GATEWAY_ADMIN_USERNAME", username);
