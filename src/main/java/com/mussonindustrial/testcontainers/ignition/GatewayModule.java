@@ -3,7 +3,7 @@ package com.mussonindustrial.testcontainers.ignition;
 /**
  * Inductive Automation Ignition Modules
  * */
-public enum StandardModule implements IgnitionModule {
+public enum GatewayModule implements IgnitionModule {
     /** Alarm Notification Module */
     ALARM_NOTIFICATION("alarm-notification"),
 
@@ -90,7 +90,7 @@ public enum StandardModule implements IgnitionModule {
 
     private final String value;
 
-    StandardModule(String value) {
+    GatewayModule(String value) {
         this.value = value;
     }
 

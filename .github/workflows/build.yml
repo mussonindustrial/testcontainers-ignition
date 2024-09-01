@@ -4,7 +4,11 @@ name: 'Build'
 on:
   push:
     branches: ['main']
+    paths-ignore:
+      - '**/README.md'
   pull_request:
+    paths-ignore:
+      - '**/README.md'
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value

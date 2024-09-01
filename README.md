@@ -17,7 +17,7 @@ This project is a Testcontainers implementation for [Ignition by Inductive Autom
 ```kotlin
 // build.gradle.kts
 dependencies {
-    testImplementation("com.mussonindustrial:testcontainers-ignition:0.2.1")
+    testImplementation("com.mussonindustrial:testcontainers-ignition:0.3.0")
 }
 ```
 
@@ -26,7 +26,7 @@ dependencies {
 <dependency>
     <groupId>com.mussonindustrial</groupId>
     <artifactId>testcontainers-ignition</artifactId>
-    <version>0.2.1</version>
+    <version>0.3.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -37,8 +37,8 @@ void createIgnitionGateway() throws FileNotFoundException {
     try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
             .withCredentials("myUsername", "myPassword")
             .withEdition(GatewayEdition.STANDARD)
+            .withModules(GatewayModule.PERSPECTIVE)
             .withGatewayBackup("./path/to/backup.gwbk")
-            .withModules(Module.PERSPECTIVE)
             .withThirdPartyModules("./path/to/module.modl")
             .acceptLicense()) {
         ignition.start();
