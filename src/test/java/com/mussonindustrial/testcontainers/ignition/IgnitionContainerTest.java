@@ -34,6 +34,7 @@ public class IgnitionContainerTest {
             try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
                     .withGatewayBackup(backup, false)
                     .acceptLicense()) {
+
                 ignition.start();
             }
         });
@@ -43,8 +44,9 @@ public class IgnitionContainerTest {
     @Test
     public void shouldUseListedModules() {
         try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
-                .withModules(Module.OPC_UA)
+                .withModules(StandardModule.OPC_UA)
                 .acceptLicense()) {
+
             ignition.waitingFor(Wait.forLogMessage(".*Processing GATEWAY_MODULES_ENABLED=opc-ua.*\\n", 1));
             ignition.start();
         }
@@ -70,6 +72,7 @@ public class IgnitionContainerTest {
     public void shouldReturnCorrectUrl() {
         try (IgnitionContainer ignition =
                 new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE).acceptLicense()) {
+
             ignition.start();
             String url = ignition.getGatewayUrl();
             String statusPingUrl = url + "/StatusPing";
@@ -79,7 +82,9 @@ public class IgnitionContainerTest {
                     HttpRequest.newBuilder().uri(URI.create(statusPingUrl)).build();
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
             assertTrue(response.body().contains("\"state\":\"RUNNING\""));
+
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -112,6 +117,7 @@ public class IgnitionContainerTest {
             try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
                     .withThirdPartyModules(module)
                     .acceptLicense()) {
+
                 ignition.start();
             }
         });

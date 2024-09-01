@@ -60,7 +60,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private String maxMemory;
 
-    private final Set<Module> modules = new HashSet<>();
+    private final Set<IgnitionModule> modules = new HashSet<>();
 
     private final Set<Path> thirdPartyModules = new HashSet<>();
 
@@ -311,7 +311,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @return this {@link IgnitionContainer} for chaining purposes.
      */
     @SuppressWarnings("unused")
-    public IgnitionContainer withModules(Module... modules) {
+    public IgnitionContainer withModules(IgnitionModule... modules) {
         checkNotRunning();
         this.modules.clear();
         this.modules.addAll(List.of(modules));
@@ -520,7 +520,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     private void exposePorts() {
         addExposedPorts(GATEWAY_PORT, GATEWAY_SSL_PORT);
 
-        if (modules.contains(Module.OPC_UA)) {
+        if (modules.contains(StandardModule.OPC_UA)) {
             addExposedPorts(OPCUA_PORT);
         }
 
@@ -579,7 +579,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     private String getEnabledModulesString() {
-        return modules.stream().map(Objects::toString).collect(Collectors.joining(","));
+        return modules.stream().map(IgnitionModule::getIdentifier).collect(Collectors.joining(","));
     }
 
     @Override
