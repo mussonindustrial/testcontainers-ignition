@@ -520,7 +520,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     private void exposePorts() {
         addExposedPorts(GATEWAY_PORT, GATEWAY_SSL_PORT);
 
-        if (modules.contains(StandardModule.OPC_UA)) {
+        if (modules.contains(GatewayModule.OPC_UA)) {
             addExposedPorts(OPCUA_PORT);
         }
 

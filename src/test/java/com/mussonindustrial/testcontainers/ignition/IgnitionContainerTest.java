@@ -44,7 +44,7 @@ public class IgnitionContainerTest {
     @Test
     public void shouldUseListedModules() {
         try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
-                .withModules(StandardModule.OPC_UA)
+                .withModules(GatewayModule.OPC_UA)
                 .acceptLicense()) {
 
             ignition.waitingFor(Wait.forLogMessage(".*Processing GATEWAY_MODULES_ENABLED=opc-ua.*\\n", 1));
