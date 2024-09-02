@@ -50,7 +50,7 @@ jobs:
 
       - name: Restore Ignition Image Cache if it exists
         id: cache-docker-ignition
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ci/cache/docker/ignition
           key: cache-docker-ignition
