@@ -482,10 +482,10 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
-     * Get the OPC UA Url of the gateway's OPC UA Server.
+     * Get the gateway's OPC UA URL.
      * Only valid if {@link GatewayModule#OPC_UA} is enabled.
      *
-     * @return the OPC UA URL of the gateway's OPC UA Server.
+     * @return the gateway's OPC UA URL.
      */
     @SuppressWarnings("unused")
     public String getOpcUaUrl() {
@@ -493,10 +493,10 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
-     * Get the UA Discovery URL of the gateway's OPC UA Server.
+     * Get the gateway's OPC UA Discovery URL.
      * Only valid if {@link GatewayModule#OPC_UA} is enabled.
      *
-     * @return the OPC UA Discovery URL of the gateway's OPC UA Server.
+     * @return the Oateway's OPC UA Discovery URL.
      */
     @SuppressWarnings("unused")
     public String getOpcUaDiscoveryUrl() {
