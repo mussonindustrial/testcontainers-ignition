@@ -482,6 +482,28 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
+     * Get the gateway's OPC UA URL.
+     * Only valid if {@link GatewayModule#OPC_UA} is enabled.
+     *
+     * @return the gateway's OPC UA URL.
+     */
+    @SuppressWarnings("unused")
+    public String getOpcUaUrl() {
+        return String.format("opc.tcp://%s:%d", getHost(), getMappedOpcUaPort());
+    }
+
+    /**
+     * Get the gateway's OPC UA Discovery URL.
+     * Only valid if {@link GatewayModule#OPC_UA} is enabled.
+     *
+     * @return the gateway's OPC UA Discovery URL.
+     */
+    @SuppressWarnings("unused")
+    public String getOpcUaDiscoveryUrl() {
+        return String.format("%s/discovery", getOpcUaUrl());
+    }
+
+    /**
      * Get the URL of the gateway web interface.
      *
      * @param ssl use HTTPS when `true`

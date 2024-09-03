@@ -2,7 +2,7 @@ package com.mussonindustrial.testcontainers.ignition;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.mussonindustrial.testcontainers.IgnitionTestImages;
+import com.mussonindustrial.testcontainers.IgnitionTestImage;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -10,28 +10,38 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
-import org.junit.jupiter.api.Test;
+import java.util.Objects;
+import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
+import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder;
+import org.eclipse.milo.opcua.stack.core.UaException;
+import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy;
+import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
 
 public class IgnitionContainerTest {
 
-    @Test
-    public void shouldUseGatewayBackup() throws FileNotFoundException {
-        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
+    @ParameterizedTest
+    @EnumSource(IgnitionTestImage.class)
+    public void shouldUseGatewayBackup(IgnitionTestImage image) throws FileNotFoundException {
+        try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                 .withGatewayBackup("./src/test/resources/backup.gwbk", false)
                 .acceptLicense()) {
+
             ignition.start();
         }
     }
 
-    @Test
-    public void shouldFailIfGatewayBackupNotPresent() {
+    @ParameterizedTest
+    @EnumSource(IgnitionTestImage.class)
+    public void shouldFailIfGatewayBackupNotPresent(IgnitionTestImage image) {
 
         Path backup = Path.of("./src/test/resources/not-a-valid-backup.gwbk");
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
-            try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+            try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                     .withGatewayBackup(backup, false)
                     .acceptLicense()) {
 
@@ -41,9 +51,10 @@ public class IgnitionContainerTest {
         assertEquals(exception.getMessage(), String.format("gateway backup '%s' does not exist", backup));
     }
 
-    @Test
-    public void shouldUseListedModules() {
-        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
+    @ParameterizedTest
+    @EnumSource(IgnitionTestImage.class)
+    public void shouldUseListedModules(IgnitionTestImage image) {
+        try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                 .withModules(GatewayModule.OPC_UA)
                 .acceptLicense()) {
 
@@ -52,9 +63,10 @@ public class IgnitionContainerTest {
         }
     }
 
-    @Test
-    public void shouldUseAdditionalArguments() {
-        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
+    @ParameterizedTest
+    @EnumSource(IgnitionTestImage.class)
+    public void shouldUseAdditionalArguments(IgnitionTestImage image) {
+        try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                 .withAdditionalArgs("gateway.resolveHostNames=true", "gateway.useProxyForwardedHeader=true")
                 .acceptLicense()) {
 
@@ -68,10 +80,10 @@ public class IgnitionContainerTest {
         }
     }
 
-    @Test
-    public void shouldReturnCorrectUrl() {
-        try (IgnitionContainer ignition =
-                new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE).acceptLicense()) {
+    @ParameterizedTest
+    @EnumSource(IgnitionTestImage.class)
+    public void shouldReturnCorrectUrl(IgnitionTestImage image) {
+        try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())) {
 
             ignition.start();
             String url = ignition.getGatewayUrl();
@@ -90,9 +102,10 @@ public class IgnitionContainerTest {
         }
     }
 
-    @Test
-    public void shouldUseThirdPartyModules() throws FileNotFoundException {
-        try (IgnitionContainer ignition = new IgnitionContainer(IgnitionTestImages.IGNITION_TEST_IMAGE)
+    @ParameterizedTest
+    @EnumSource(IgnitionTestImage.class)
+    public void shouldUseThirdPartyModules(IgnitionTestImage image) throws FileNotFoundException {
+        try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                 .withThirdPartyModules(
                         "./src/test/resources/Embr-EventStream-0.4.0.modl",
                         "./src/test/resources/Embr-Thermodynamics-0.1.2.modl")
@@ -108,13 +121,14 @@ public class IgnitionContainerTest {
         }
     }
 
-    @Test
-    public void shouldFailIfThirdPartyModulesNotPresent() {
+    @ParameterizedTest
+    @EnumSource(IgnitionTestImage.class)
+    public void shouldFailIfThirdPartyModulesNotPresent(IgnitionTestImage image) {
 
         Path module = Path.of("./src/test/resources/not-a-valid-module.modl");
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
-            try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+            try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                     .withThirdPartyModules(module)
                     .acceptLicense()) {
 
@@ -122,5 +136,32 @@ public class IgnitionContainerTest {
             }
         });
         assertEquals(String.format("module '%s' does not exist", module), exception.getMessage());
+    }
+
+    @ParameterizedTest
+    @EnumSource(IgnitionTestImage.class)
+    public void shouldMapOpcUaEndpoint(IgnitionTestImage image) throws FileNotFoundException, UaException {
+
+        try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
+                .withModules(GatewayModule.OPC_UA)
+                .withGatewayBackup("./src/test/resources/opcua.gwbk")
+                .acceptLicense()) {
+
+            ignition.start();
+
+            OpcUaClient opcUaClient = getUnsecureOpcUaClient(ignition);
+            opcUaClient.connect();
+            opcUaClient.disconnect();
+        }
+    }
+
+    private OpcUaClient getUnsecureOpcUaClient(IgnitionContainer ignition) throws UaException {
+        return OpcUaClient.create(
+                ignition.getOpcUaDiscoveryUrl(),
+                (endpoints) -> endpoints.stream()
+                        .filter(e -> Objects.equals(e.getSecurityPolicyUri(), SecurityPolicy.None.getUri()))
+                        .findFirst()
+                        .map(e -> EndpointUtil.updateUrl(e, ignition.getHost(), ignition.getMappedOpcUaPort())),
+                OpcUaClientConfigBuilder::build);
     }
 }
