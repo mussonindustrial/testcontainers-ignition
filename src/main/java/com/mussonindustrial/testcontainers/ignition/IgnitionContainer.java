@@ -21,8 +21,8 @@ import org.testcontainers.utility.MountableFile;
  *      <li>Gateway: 8080</li>
  *      <li>Gateway (SSL): 8043</li>
  *      <li>Gateway Area Network: 8060</li>
- *      <li>OPC-UA Server: 62541</li>
- *      <li>JVM Debugger: 8000</li>
+ *      <li>OPC UA Server (if OPC UA module is enabled): 62541</li>
+ *      <li>JVM Debugger (if debug mode is enabled): 8000</li>
  * </ul>
  */
 public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
@@ -52,7 +52,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private Integer gid;
 
-    private String name = "testcontainers-ignition";
+    private String name;
 
     private GatewayEdition edition = GatewayEdition.STANDARD;
 
@@ -479,6 +479,28 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     @SuppressWarnings("unused")
     public String getGatewayUrl() {
         return String.format("http://%s:%d", getHost(), getMappedGatewayPort());
+    }
+
+    /**
+     * Get the gateway's OPC UA URL.
+     * Only valid if {@link GatewayModule#OPC_UA} is enabled.
+     *
+     * @return the gateway's OPC UA URL.
+     */
+    @SuppressWarnings("unused")
+    public String getOpcUaUrl() {
+        return String.format("opc.tcp://%s:%d", getHost(), getMappedOpcUaPort());
+    }
+
+    /**
+     * Get the gateway's OPC UA Discovery URL.
+     * Only valid if {@link GatewayModule#OPC_UA} is enabled.
+     *
+     * @return the gateway's OPC UA Discovery URL.
+     */
+    @SuppressWarnings("unused")
+    public String getOpcUaDiscoveryUrl() {
+        return String.format("%s/discovery", getOpcUaUrl());
     }
 
     /**

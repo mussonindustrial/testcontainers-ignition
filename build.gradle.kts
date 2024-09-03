@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.mussonindustrial"
-version = "0.3.0"
+version = "0.3.1"
 description = "An implementation of Testcontainers for Ignition by Inductive Automation."
 
 repositories {
@@ -21,7 +21,9 @@ dependencies {
 
     testRuntimeOnly(libs.junit.platform)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit.params)
     testImplementation(libs.slf4j)
+    testImplementation(libs.eclipse.milo)
 }
 
 java {
