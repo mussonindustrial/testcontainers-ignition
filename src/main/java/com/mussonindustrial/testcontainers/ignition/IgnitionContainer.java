@@ -52,7 +52,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private Integer gid;
 
-    private String name = "testcontainers-ignition";
+    private String name;
 
     private GatewayEdition edition = GatewayEdition.STANDARD;
 
