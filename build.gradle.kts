@@ -21,7 +21,9 @@ dependencies {
 
     testRuntimeOnly(libs.junit.platform)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit.params)
     testImplementation(libs.slf4j)
+    testImplementation(libs.eclipse.milo)
 }
 
 java {
