@@ -500,7 +500,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      */
     @SuppressWarnings("unused")
     public String getOpcUaDiscoveryUrl() {
-        return String.format("%s/discovery", this.getOpcUaUrl());
+        return String.format("%s/discovery", getOpcUaUrl());
     }
 
     /**
