@@ -22,7 +22,7 @@ import org.testcontainers.utility.MountableFile;
  *      <li>Gateway (SSL): 8043</li>
  *      <li>Gateway Area Network: 8060</li>
  *      <li>OPC UA Server (if OPC UA module is enabled): 62541</li>
- *      <li>JVM Debugger: 8000</li>
+ *      <li>JVM Debugger (if debug mode is enabled): 8000</li>
  * </ul>
  */
 public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
