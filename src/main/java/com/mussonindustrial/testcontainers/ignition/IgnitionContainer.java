@@ -496,7 +496,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * Get the gateway's OPC UA Discovery URL.
      * Only valid if {@link GatewayModule#OPC_UA} is enabled.
      *
-     * @return the Oateway's OPC UA Discovery URL.
+     * @return the gateway's OPC UA Discovery URL.
      */
     @SuppressWarnings("unused")
     public String getOpcUaDiscoveryUrl() {
