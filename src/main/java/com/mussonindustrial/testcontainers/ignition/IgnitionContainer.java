@@ -152,7 +152,19 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
-     * Set debug mode.
+     * Enable debug mode.
+     *
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withDebugMode() {
+        checkNotRunning();
+        this.debugMode = true;
+        return self();
+    }
+
+    /**
+     * Enable or disable debug mode.
      *
      * @param debugMode the debug mode setting to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
@@ -349,6 +361,18 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      */
     public IgnitionContainer withThirdPartyModules(String... paths) throws FileNotFoundException {
         return this.withThirdPartyModules(Arrays.stream(paths).map(Path::of).toArray(Path[]::new));
+    }
+
+    /**
+     * Enable or disable quick start mode.
+     *
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withQuickStart() {
+        checkNotRunning();
+        this.quickStartEnabled = true;
+        return self();
     }
 
     /**
