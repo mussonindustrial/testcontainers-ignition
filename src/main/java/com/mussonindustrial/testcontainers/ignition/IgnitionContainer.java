@@ -44,9 +44,9 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private static final String INSTALL_DIR = "/usr/local/bin/ignition";
 
-    private String username = "admin";
+    private String username;
 
-    private String password = "password";
+    private String password;
 
     private Integer uid;
 
@@ -152,7 +152,19 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
-     * Set debug mode.
+     * Enable debug mode.
+     *
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withDebugMode() {
+        checkNotRunning();
+        this.debugMode = true;
+        return self();
+    }
+
+    /**
+     * Enable or disable debug mode.
      *
      * @param debugMode the debug mode setting to use.
      * @return this {@link IgnitionContainer} for chaining purposes.
@@ -349,6 +361,18 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      */
     public IgnitionContainer withThirdPartyModules(String... paths) throws FileNotFoundException {
         return this.withThirdPartyModules(Arrays.stream(paths).map(Path::of).toArray(Path[]::new));
+    }
+
+    /**
+     * Enable or disable quick start mode.
+     *
+     * @return this {@link IgnitionContainer} for chaining purposes.
+     */
+    @SuppressWarnings("unused")
+    public IgnitionContainer withQuickStart() {
+        checkNotRunning();
+        this.quickStartEnabled = true;
+        return self();
     }
 
     /**
@@ -580,8 +604,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     private void applyEnvironmentVariables() {
         if (licenseAccepted) addEnv("ACCEPT_IGNITION_EULA", "Y");
         addEnv("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
-        addEnv("GATEWAY_ADMIN_USERNAME", username);
-        addEnv("GATEWAY_ADMIN_PASSWORD", password);
+        if (username != null) addEnv("GATEWAY_ADMIN_USERNAME", username);
+        if (password != null) addEnv("GATEWAY_ADMIN_PASSWORD", password);
 
         addEnv("GATEWAY_GAN_PORT", String.valueOf(GAN_PORT));
         addEnv("GATEWAY_HTTP_PORT", String.valueOf(GATEWAY_PORT));

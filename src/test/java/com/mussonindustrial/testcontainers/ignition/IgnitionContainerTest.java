@@ -42,7 +42,7 @@ public class IgnitionContainerTest {
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
             try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
-                    .withGatewayBackup(backup, false)
+                    .withGatewayBackup(backup)
                     .acceptLicense()) {
 
                 ignition.start();
@@ -109,6 +109,7 @@ public class IgnitionContainerTest {
                 .withThirdPartyModules(
                         "./src/test/resources/Embr-EventStream-0.4.0.modl",
                         "./src/test/resources/Embr-Thermodynamics-0.1.2.modl")
+                .withCredentials("admin", "password")
                 .acceptLicense()) {
 
             WaitAllStrategy waitStrategy = new WaitAllStrategy();
@@ -130,6 +131,7 @@ public class IgnitionContainerTest {
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
             try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                     .withThirdPartyModules(module)
+                    .withCredentials("admin", "password")
                     .acceptLicense()) {
 
                 ignition.start();
