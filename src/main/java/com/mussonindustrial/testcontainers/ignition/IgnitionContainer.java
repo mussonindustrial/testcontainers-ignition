@@ -580,8 +580,8 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     private void applyEnvironmentVariables() {
         if (licenseAccepted) addEnv("ACCEPT_IGNITION_EULA", "Y");
         addEnv("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
-        addEnv("GATEWAY_ADMIN_USERNAME", username);
-        addEnv("GATEWAY_ADMIN_PASSWORD", password);
+        if (username != null) addEnv("GATEWAY_ADMIN_USERNAME", username);
+        if (password != null) addEnv("GATEWAY_ADMIN_PASSWORD", password);
 
         addEnv("GATEWAY_GAN_PORT", String.valueOf(GAN_PORT));
         addEnv("GATEWAY_HTTP_PORT", String.valueOf(GATEWAY_PORT));
