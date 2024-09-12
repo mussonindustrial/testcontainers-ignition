@@ -42,7 +42,7 @@ public class IgnitionContainerTest {
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
             try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
-                    .withGatewayBackup(backup, false)
+                    .withGatewayBackup(backup)
                     .acceptLicense()) {
 
                 ignition.start();
