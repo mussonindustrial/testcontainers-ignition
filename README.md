@@ -17,7 +17,7 @@ This project is a Testcontainers implementation for [Ignition by Inductive Autom
 ```kotlin
 // build.gradle.kts
 dependencies {
-    testImplementation("com.mussonindustrial:testcontainers-ignition:0.3.1")
+    testImplementation("com.mussonindustrial:testcontainers-ignition:0.4.0")
 }
 ```
 
@@ -26,7 +26,7 @@ dependencies {
 <dependency>
     <groupId>com.mussonindustrial</groupId>
     <artifactId>testcontainers-ignition</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0</version>
     <scope>test</scope>
 </dependency>
 ```
