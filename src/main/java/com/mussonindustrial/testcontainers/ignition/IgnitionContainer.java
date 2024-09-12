@@ -44,9 +44,9 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     private static final String INSTALL_DIR = "/usr/local/bin/ignition";
 
-    private String username = "admin";
+    private String username;
 
-    private String password = "password";
+    private String password;
 
     private Integer uid;
 
