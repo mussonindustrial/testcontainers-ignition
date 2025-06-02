@@ -4,7 +4,7 @@ junit-platform = "1.12.2"
 junit-jupiter = "5.12.2"
 slf4j = "2.0.17"
 jreleaser = "1.18.0"
-spotless = "7.0.3"
+spotless = "7.0.4"
 eclipse-milo = "0.6.16"
 
 [libraries]
