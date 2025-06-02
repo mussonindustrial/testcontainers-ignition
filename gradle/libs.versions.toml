@@ -1,5 +1,5 @@
 [versions]
-testcontainers = "1.21.0"
+testcontainers = "1.21.1"
 junit-platform = "1.12.2"
 junit-jupiter = "5.12.2"
 slf4j = "2.0.17"
