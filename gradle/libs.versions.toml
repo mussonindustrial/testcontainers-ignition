@@ -1,6 +1,6 @@
 [versions]
 testcontainers = "1.21.0"
-junit-platform = "1.12.2"
+junit-platform = "1.13.0"
 junit-jupiter = "5.12.2"
 slf4j = "2.0.17"
 jreleaser = "1.18.0"
