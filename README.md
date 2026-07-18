@@ -17,7 +17,7 @@ This project is a Testcontainers implementation for [Ignition by Inductive Autom
 ```kotlin
 // build.gradle.kts
 dependencies {
-    testImplementation("com.mussonindustrial:testcontainers-ignition:0.4.3")
+    testImplementation("com.mussonindustrial:testcontainers-ignition:0.5.0-SNAPSHOT")
 }
 ```
 
@@ -26,7 +26,7 @@ dependencies {
 <dependency>
     <groupId>com.mussonindustrial</groupId>
     <artifactId>testcontainers-ignition</artifactId>
-    <version>0.4.3</version>
+    <version>0.5.0-SNAPSHOT</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -34,12 +34,11 @@ dependencies {
 ## Usage
 ```java
 void createIgnitionGateway() throws FileNotFoundException {
-    try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.1.33")
+    try (IgnitionContainer ignition = new IgnitionContainer()
             .withCredentials("myUsername", "myPassword")
             .withEdition(GatewayEdition.STANDARD)
             .withModules(GatewayModule.PERSPECTIVE)
             .withGatewayBackup("./path/to/backup.gwbk")
-            .withThirdPartyModules("./path/to/module.modl")
             .acceptLicense()) {
         ignition.start();
         String url = ignition.getGatewayUrl();
@@ -47,6 +46,28 @@ void createIgnitionGateway() throws FileNotFoundException {
     }
 }
 ```
+
+The no-argument constructor uses Ignition 8.3.8. A fresh gateway enables OPC UA
+when no explicit module selection is supplied so automated commissioning can
+finish. To run a custom unsigned module, enable developer mode and add its module
+archive:
+
+```java
+void createDeveloperGateway() throws FileNotFoundException {
+    try (IgnitionContainer ignition = new IgnitionContainer()
+            .withCredentials("admin", "password")
+            .withDeveloperMode()
+            .withThirdPartyModule("./path/to/unsigned-module.modl")
+            .acceptLicense()) {
+        ignition.start();
+        // The gateway and unsigned module are running when start() returns.
+    }
+}
+```
+
+The module identifier and gateway-scoped dependencies are read from `module.xml`
+and included in the Ignition 8.3 automated commissioning configuration. String
+and `Path` overloads are available for singular and plural third-party module APIs.
 
 ## Sponsors
 Maintenance of this project is made possible by all our [contributors] and [sponsors].
@@ -57,6 +78,7 @@ If you'd like to sponsor this project and have your avatar or company logo appea
 -   [License (MIT)](LICENSE)
 -   [Musson Industrial](https://mussonindustrial.com/)
 -   [Inductive Automation](https://inductiveautomation.com/)
+-   [Ignition 8.3 Docker Image](https://www.docs.inductiveautomation.com/docs/8.3/platform/docker-image)
 
 [testcontainers-ignition]: https://github.com/mussonindustrial/testcontainers-ignition/
 [testcontainers]: https://java.testcontainers.org/

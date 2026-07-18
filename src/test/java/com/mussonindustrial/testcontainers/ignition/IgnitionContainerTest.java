@@ -1,6 +1,8 @@
 package com.mussonindustrial.testcontainers.ignition;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.mussonindustrial.testcontainers.IgnitionTestImage;
 import java.io.FileNotFoundException;
@@ -11,15 +13,17 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy;
 import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
+import org.testcontainers.containers.output.WaitingConsumer;
 
 public class IgnitionContainerTest {
 
@@ -28,6 +32,7 @@ public class IgnitionContainerTest {
     public void shouldUseGatewayBackup(IgnitionTestImage image) throws FileNotFoundException {
         try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                 .withGatewayBackup("./src/test/resources/backup.gwbk", false)
+                .withCredentials("admin", "password")
                 .acceptLicense()) {
 
             ignition.start();
@@ -37,7 +42,6 @@ public class IgnitionContainerTest {
     @ParameterizedTest
     @EnumSource(IgnitionTestImage.class)
     public void shouldFailIfGatewayBackupNotPresent(IgnitionTestImage image) {
-
         Path backup = Path.of("./src/test/resources/not-a-valid-backup.gwbk");
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
@@ -48,7 +52,7 @@ public class IgnitionContainerTest {
                 ignition.start();
             }
         });
-        assertEquals(exception.getMessage(), String.format("gateway backup '%s' does not exist", backup));
+        assertEquals(String.format("gateway backup '%s' does not exist", backup), exception.getMessage());
     }
 
     @ParameterizedTest
@@ -56,10 +60,12 @@ public class IgnitionContainerTest {
     public void shouldUseListedModules(IgnitionTestImage image) {
         try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                 .withModules(GatewayModule.OPC_UA)
+                .withCredentials("admin", "password")
                 .acceptLicense()) {
 
-            ignition.waitingFor(Wait.forLogMessage(".*Processing GATEWAY_MODULES_ENABLED=opc-ua.*\\n", 1));
             ignition.start();
+            assertEquals(
+                    GatewayModule.OPC_UA.getIdentifier(), ignition.getEnvMap().get("GATEWAY_MODULES_ENABLED"));
         }
     }
 
@@ -68,35 +74,32 @@ public class IgnitionContainerTest {
     public void shouldUseAdditionalArguments(IgnitionTestImage image) {
         try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                 .withAdditionalArgs("gateway.resolveHostNames=true", "gateway.useProxyForwardedHeader=true")
+                .withCredentials("admin", "password")
                 .acceptLicense()) {
 
-            WaitAllStrategy strategy = new WaitAllStrategy();
-            strategy.withStrategy(Wait.forLogMessage(".*Collecting gateway arg: gateway.resolveHostNames=true\\n", 1))
-                    .withStrategy(
-                            Wait.forLogMessage(".*Collecting gateway arg: gateway.useProxyForwardedHeader=true\\n", 1));
-
-            ignition.waitingFor(strategy);
             ignition.start();
+            assertArrayEquals(
+                    new String[] {"--", "gateway.resolveHostNames=true", "gateway.useProxyForwardedHeader=true"},
+                    ignition.getCommandParts());
         }
     }
 
     @ParameterizedTest
     @EnumSource(IgnitionTestImage.class)
     public void shouldReturnCorrectUrl(IgnitionTestImage image) {
-        try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())) {
+        try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
+                .withCredentials("admin", "password")
+                .acceptLicense()) {
 
             ignition.start();
-            String url = ignition.getGatewayUrl();
-            String statusPingUrl = url + "/StatusPing";
+            String statusPingUrl = ignition.getGatewayUrl() + "/StatusPing";
 
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request =
                     HttpRequest.newBuilder().uri(URI.create(statusPingUrl)).build();
-
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            assertTrue(response.body().contains("\"state\":\"RUNNING\""));
-
+            assertEquals("{\"state\":\"RUNNING\"}", response.body());
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -104,28 +107,31 @@ public class IgnitionContainerTest {
 
     @ParameterizedTest
     @EnumSource(IgnitionTestImage.class)
-    public void shouldUseThirdPartyModules(IgnitionTestImage image) throws FileNotFoundException {
+    @EnabledIfEnvironmentVariable(named = "IGNITION_TEST_UNSIGNED_MODULE", matches = ".+")
+    public void shouldUseUnsignedThirdPartyModule(IgnitionTestImage image)
+            throws FileNotFoundException, TimeoutException {
+        String modulePath = System.getenv("IGNITION_TEST_UNSIGNED_MODULE");
+        WaitingConsumer moduleLog = new WaitingConsumer();
+
         try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
-                .withThirdPartyModules(
-                        "./src/test/resources/Embr-EventStream-0.4.0.modl",
-                        "./src/test/resources/Embr-Thermodynamics-0.1.2.modl")
+                .withDeveloperMode()
+                .withThirdPartyModule(modulePath)
                 .withCredentials("admin", "password")
+                .withLogConsumer(moduleLog)
                 .acceptLicense()) {
 
-            WaitAllStrategy waitStrategy = new WaitAllStrategy();
-            waitStrategy = waitStrategy
-                    .withStrategy(Wait.forLogMessage(".*Embr Event Stream.*\\n", 1))
-                    .withStrategy(Wait.forLogMessage(".*Embr Thermodynamics.*\\n", 1));
-
-            ignition.waitingFor(waitStrategy);
             ignition.start();
+            moduleLog.waitUntil(
+                    frame ->
+                            frame.getUtf8String().contains("Starting up module 'com.kevinherron.modbus-server-driver'"),
+                    10,
+                    TimeUnit.SECONDS);
         }
     }
 
     @ParameterizedTest
     @EnumSource(IgnitionTestImage.class)
     public void shouldFailIfThirdPartyModulesNotPresent(IgnitionTestImage image) {
-
         Path module = Path.of("./src/test/resources/not-a-valid-module.modl");
 
         FileNotFoundException exception = assertThrows(FileNotFoundException.class, () -> {
@@ -143,7 +149,6 @@ public class IgnitionContainerTest {
     @ParameterizedTest
     @EnumSource(IgnitionTestImage.class)
     public void shouldMapOpcUaEndpoint(IgnitionTestImage image) throws FileNotFoundException, UaException {
-
         try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())
                 .withModules(GatewayModule.OPC_UA)
                 .withGatewayBackup("./src/test/resources/opcua.gwbk")
@@ -160,7 +165,7 @@ public class IgnitionContainerTest {
     private OpcUaClient getUnsecureOpcUaClient(IgnitionContainer ignition) throws UaException {
         return OpcUaClient.create(
                 ignition.getOpcUaDiscoveryUrl(),
-                (endpoints) -> endpoints.stream()
+                endpoints -> endpoints.stream()
                         .filter(e -> Objects.equals(e.getSecurityPolicyUri(), SecurityPolicy.None.getUri()))
                         .findFirst()
                         .map(e -> EndpointUtil.updateUrl(e, ignition.getHost(), ignition.getMappedOpcUaPort())),
