@@ -1,793 +1,711 @@
 package com.mussonindustrial.testcontainers.ignition;
 
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.BUILT_IN_MODULE_SELECTION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.DEBUG_MODE;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_EDITION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_NAME;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_RESTORE;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.INITIAL_ADMIN_CONFIGURATION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LEASED_LICENSE_ACTIVATION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LICENSE_ACCEPTANCE;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.MAX_MEMORY;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.PROCESS_IDENTITY;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.QUICK_START_CONTROL;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.SUPPLEMENTAL_ARGUMENTS;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.THIRD_PARTY_MODULE_INSTALLATION;
+
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.mussonindustrial.testcontainers.ignition.compatibility.CapabilityStatus;
+import com.mussonindustrial.testcontainers.ignition.compatibility.CapabilitySupport;
+import com.mussonindustrial.testcontainers.ignition.internal.ContainerFileCopy;
+import com.mussonindustrial.testcontainers.ignition.internal.ContainerPlan;
+import com.mussonindustrial.testcontainers.ignition.internal.GatewayCredentials;
+import com.mussonindustrial.testcontainers.ignition.internal.GeneratedContainerFile;
+import com.mussonindustrial.testcontainers.ignition.internal.IgnitionContainerSpec;
+import com.mussonindustrial.testcontainers.ignition.profiles.IgnitionProfile;
+import com.mussonindustrial.testcontainers.ignition.profiles.IgnitionProfiles;
 import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
-import javax.xml.parsers.DocumentBuilderFactory;
+import java.util.function.Consumer;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
 
 /**
- * Testcontainers implementation for Ignition.
+ * Testcontainers implementation for an Ignition Gateway.
  *
- * <p>
- * Supported image: {@code inductiveautomation/ignition}
- * <p>
- * Exposed ports:
- * <ul>
- *      <li>Gateway: 8088</li>
- *      <li>Gateway (SSL): 8043</li>
- *      <li>Gateway Area Network: 8060</li>
- *      <li>OPC UA Server (if OPC UA module is enabled): 62541</li>
- *      <li>JVM Debugger (if debug mode is enabled): 8000</li>
- * </ul>
+ * <p>User configuration is recorded in an {@link IgnitionContainerSpec} and
+ * translated by the {@link IgnitionProfile} selected for the image version.
+ *
+ * <p>Unsupported capabilities are ignored with warnings. Capabilities used
+ * before their documented version are applied with warnings.
  */
 public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
-    private static final DockerImageName DEFAULT_IMAGE_NAME = DockerImageName.parse("inductiveautomation/ignition");
+    /** Official Ignition Docker image name. */
+    public static final DockerImageName DEFAULT_IMAGE_NAME = DockerImageName.parse("inductiveautomation/ignition");
 
-    private static final String DEFAULT_TAG = "8.3.8";
+    /** Parsed Ignition image version. */
+    private final IgnitionVersion ignitionVersion;
 
-    private static final Integer GATEWAY_PORT = 8088;
+    /** Compatibility profile selected for the image. */
+    private final IgnitionProfile profile;
 
-    private static final Integer GATEWAY_SSL_PORT = 8043;
-
-    private static final Integer GAN_PORT = 8060;
-
-    private static final Integer OPCUA_PORT = 62541;
-
-    private static final Integer DEBUG_PORT = 8000;
-
-    private static final String INSTALL_DIR = "/usr/local/bin/ignition";
-
-    private String username;
-
-    private String password;
-
-    private Integer uid;
-
-    private Integer gid;
-
-    private String name;
-
-    private GatewayEdition edition = GatewayEdition.STANDARD;
-
-    private String timezone = "Etc/UTC";
-
-    private String maxMemory;
-
-    private final Set<IgnitionModule> modules = new LinkedHashSet<>(Set.of(GatewayModule.OPC_UA));
-
-    private final Map<Path, ThirdPartyModuleDescriptor> thirdPartyModules = new LinkedHashMap<>();
-
-    private boolean licenseAccepted = false;
-
-    private boolean quickStartEnabled = false;
-
-    private Boolean debugMode = false;
-
-    private boolean developerMode = false;
-
-    private Path gatewayBackup;
-
-    private boolean restoreDisabled = false;
-
-    private String activationToken;
-
-    private String licenseKey;
-
-    private List<String> additionalArgs;
+    /** Normalized user configuration. */
+    private final IgnitionContainerSpec specification = new IgnitionContainerSpec();
 
     /**
-     * Creates a new Ignition container with the default image and version.
-     */
-    public IgnitionContainer() {
-        this(DEFAULT_IMAGE_NAME.withTag(DEFAULT_TAG));
-    }
-
-    /**
-     * Creates a new Ignition container with the specified image name.
+     * Creates an Ignition container.
      *
-     * @param dockerImageName the image name that should be used.
+     * @param dockerImageName concrete Ignition image name
      */
     public IgnitionContainer(String dockerImageName) {
-        this(DockerImageName.parse(dockerImageName));
+        this(DockerImageName.parse(Objects.requireNonNull(dockerImageName, "dockerImageName")));
     }
 
     /**
-     * Create a new Ignition container with the specified image name.
+     * Creates an Ignition container.
      *
-     * @param dockerImageName the image name that should be used.
+     * @param dockerImageName concrete Ignition image name
      */
-    public IgnitionContainer(final DockerImageName dockerImageName) {
+    public IgnitionContainer(DockerImageName dockerImageName) {
         super(dockerImageName);
+
         dockerImageName.assertCompatibleWith(DEFAULT_IMAGE_NAME);
 
-        this.waitStrategy = Wait.forHttp("/StatusPing")
-                .forPort(GATEWAY_PORT)
-                .forResponsePredicate("{\"state\":\"RUNNING\"}"::equals)
-                .withStartupTimeout(Duration.ofMinutes(5));
+        ignitionVersion = IgnitionVersion.from(dockerImageName);
+
+        profile = IgnitionProfiles.resolve(ignitionVersion);
+
+        setWaitStrategy(profile.createWaitStrategy(ignitionVersion));
     }
 
     /**
-     * Automatically accept the Ignition EULA.
-     * @see <a href="https://inductiveautomation.com/ignition/license">https://inductiveautomation.com/ignition/license</a>
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * Accepts the Ignition license agreement.
+     *
+     * @return this container
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer acceptLicense() {
-        checkNotRunning();
-        this.licenseAccepted = true;
-        return self();
+        return use(LICENSE_ACCEPTANCE, IgnitionContainerSpec::acceptLicense);
     }
 
     /**
-     * Set an activation token for the gateway.
+     * Sets the leased-license activation token.
      *
-     * @param token the activation token to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param activationToken activation token
+     * @return this container
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withActivationToken(String token) {
-        checkNotRunning();
-        this.activationToken = token;
-        return self();
+    public IgnitionContainer withActivationToken(String activationToken) {
+        Objects.requireNonNull(activationToken, "activationToken");
+
+        return use(LEASED_LICENSE_ACTIVATION, spec -> spec.activationToken(activationToken));
     }
 
     /**
-     * Set custom username and password for the admin user.
+     * Sets the initial Gateway administrator credentials.
      *
-     * @param username the admin username to use.
-     * @param password the password for the admin user.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param username administrator username
+     * @param password administrator password
+     * @return this container
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withCredentials(final String username, final String password) {
-        checkNotRunning();
-        this.username = username;
-        this.password = password;
-        return self();
+    public IgnitionContainer withCredentials(String username, String password) {
+        Objects.requireNonNull(username, "username");
+
+        Objects.requireNonNull(password, "password");
+
+        return use(INITIAL_ADMIN_CONFIGURATION, spec -> spec.credentials(username, password));
     }
 
     /**
-     * Enable debug mode.
+     * Enables or disables Gateway JVM debugging.
      *
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param debugMode debug state
+     * @return this container
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withDebugMode() {
-        checkNotRunning();
-        this.debugMode = true;
-        return self();
-    }
-
-    /**
-     * Enable or disable debug mode.
-     *
-     * @param debugMode the debug mode setting to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     */
-    @SuppressWarnings("unused")
     public IgnitionContainer withDebugMode(boolean debugMode) {
-        checkNotRunning();
-        this.debugMode = debugMode;
-        return self();
+        return use(DEBUG_MODE, spec -> spec.debugMode(debugMode));
     }
 
     /**
-     * Enable developer mode so the gateway can load unsigned modules.
+     * Sets the Gateway edition.
      *
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param edition Gateway edition
+     * @return this container
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withDeveloperMode() {
-        return withDeveloperMode(true);
+    public IgnitionContainer withEdition(IgnitionGatewayEdition edition) {
+        Objects.requireNonNull(edition, "edition");
+
+        return use(GATEWAY_EDITION, spec -> spec.edition(edition));
     }
 
     /**
-     * Enable or disable developer mode.
+     * Exposes an additional container port.
      *
-     * @param developerMode whether unsigned modules should be allowed.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param port container port
+     * @return this container
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withDeveloperMode(boolean developerMode) {
-        checkNotRunning();
-        this.developerMode = developerMode;
-        return self();
-    }
-
-    /**
-     * Set the gateway edition.
-     *
-     * @param edition the Ignition version to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withEdition(GatewayEdition edition) {
-        checkNotRunning();
-        this.edition = edition;
-        return self();
-    }
-
-    /**
-     * Add an exposed port to the container.
-     *
-     * <p>After the container is started, the mapped port can be retrieved using the
-     * {@link #getMappedPort(int)} method.
-     *
-     * @param port the port to expose.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     */
-    @SuppressWarnings("unused")
     public IgnitionContainer withAdditionalExposedPort(int port) {
         checkNotRunning();
-        this.addExposedPort(port);
+        addExposedPort(port);
+
         return self();
     }
 
     /**
-     * Set a gateway backup file (*.gwbk) to restore from.
-     * Restores into the enabled state.
+     * Restores a Gateway backup with disabled resources enabled.
      *
-     * @param path the path to the gateway backup file.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if the gateway backup does not exist.
+     * @param path Gateway backup path
+     * @return this container
+     * @throws FileNotFoundException if the backup does not exist
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withGatewayBackup(String path) throws FileNotFoundException {
-        return this.withGatewayBackup(path, false);
+        Objects.requireNonNull(path, "path");
+
+        return withGatewayBackup(Path.of(path), false);
     }
 
     /**
-     * Set a gateway backup file (*.gwbk) to restore from.
+     * Restores a Gateway backup.
      *
-     * @param path the path to the gateway backup file.
-     * @param restoreDisabled true to restore to a disabled state.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if the gateway backup does not exist.
+     * @param path Gateway backup path
+     * @param restoreDisabled whether disabled resources remain disabled
+     * @return this container
+     * @throws FileNotFoundException if the backup does not exist
      */
     public IgnitionContainer withGatewayBackup(String path, boolean restoreDisabled) throws FileNotFoundException {
-        return this.withGatewayBackup(Path.of(path), restoreDisabled);
+        Objects.requireNonNull(path, "path");
+
+        return withGatewayBackup(Path.of(path), restoreDisabled);
     }
 
     /**
-     * Set a gateway backup file (*.gwbk) to restore from.
-     * Restores into the enabled state.
+     * Restores a Gateway backup with disabled resources enabled.
      *
-     * @param path the path to the gateway backup file.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if the gateway backup does not exist.
+     * @param path Gateway backup path
+     * @return this container
+     * @throws FileNotFoundException if the backup does not exist
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withGatewayBackup(Path path) throws FileNotFoundException {
-        return this.withGatewayBackup(path, false);
+        return withGatewayBackup(path, false);
     }
 
     /**
-     * Set a gateway backup file (*.gwbk) to restore from.
+     * Restores a Gateway backup.
      *
-     * @param path the path to the gateway backup file.
-     * @param restoreDisabled true to restore to a disabled state.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if the gateway backup does not exist.
+     * @param path Gateway backup path
+     * @param restoreDisabled whether disabled resources remain disabled
+     * @return this container
+     * @throws FileNotFoundException if the backup does not exist
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withGatewayBackup(Path path, boolean restoreDisabled) throws FileNotFoundException {
-        checkNotRunning();
+        Objects.requireNonNull(path, "path");
 
         if (!Files.isRegularFile(path)) {
-            throw new FileNotFoundException(String.format("gateway backup '%s' does not exist", path));
+            throw new FileNotFoundException("gateway backup '%s' does not exist".formatted(path));
         }
 
-        this.gatewayBackup = path.toAbsolutePath().normalize();
-        this.restoreDisabled = restoreDisabled;
-        return self();
+        return use(GATEWAY_RESTORE, spec -> spec.gatewayRestore(path, restoreDisabled));
     }
 
     /**
-     * Set the gateway name.
+     * Sets the Gateway name.
      *
-     * @param name the gateway name to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param name Gateway name
+     * @return this container
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withGatewayName(String name) {
-        checkNotRunning();
-        this.name = name;
-        return self();
+        Objects.requireNonNull(name, "name");
+
+        return use(GATEWAY_NAME, spec -> spec.gatewayName(name));
     }
 
     /**
-     * Set the GID of the process running the Ignition gateway.
+     * Sets the Ignition process group ID.
      *
-     * @param gid the GID to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param gid process group ID
+     * @return this container
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withGid(int gid) {
-        checkNotRunning();
-        this.gid = gid;
-        return self();
+        return use(PROCESS_IDENTITY, spec -> spec.gid(gid));
     }
 
     /**
-     * Set a license key for the gateway.
+     * Sets the leased-license key.
      *
-     * @param key the license key to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param licenseKey license key
+     * @return this container
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withLicenseKey(String key) {
-        checkNotRunning();
-        this.licenseKey = key;
-        return self();
+    public IgnitionContainer withLicenseKey(String licenseKey) {
+        Objects.requireNonNull(licenseKey, "licenseKey");
+
+        return use(LEASED_LICENSE_ACTIVATION, spec -> spec.licenseKey(licenseKey));
     }
 
     /**
-     * Set the maximum memory usage of the gateway.
+     * Sets the maximum Gateway JVM memory.
      *
-     * @param maxMemory the maximum memory to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param maxMemory maximum memory value
+     * @return this container
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withMaxMemory(String maxMemory) {
-        checkNotRunning();
-        this.maxMemory = maxMemory;
-        return self();
+        Objects.requireNonNull(maxMemory, "maxMemory");
+
+        return use(MAX_MEMORY, spec -> spec.maxMemory(maxMemory));
     }
 
     /**
-     * Include modules when initializing the gateway.
+     * Selects the built-in modules to install.
      *
-     * @param modules the modules to add.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * <p>An empty selection explicitly requests no built-in modules.
+     *
+     * @param modules selected modules
+     * @return this container
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withModules(IgnitionModule... modules) {
-        checkNotRunning();
-        this.modules.clear();
-        this.modules.addAll(List.of(modules));
-        return self();
+        Objects.requireNonNull(modules, "modules");
+
+        Set<IgnitionModule> requestedModules = new LinkedHashSet<>();
+
+        for (IgnitionModule module : modules) {
+            requestedModules.add(Objects.requireNonNull(module, "modules cannot contain null"));
+        }
+
+        Set<IgnitionModule> immutableModules = Collections.unmodifiableSet(requestedModules);
+
+        return use(BUILT_IN_MODULE_SELECTION, spec -> spec.modules(immutableModules));
     }
 
     /**
-     * Include a third party module when initializing the gateway. The module identifier and
-     * gateway-scoped dependencies are read from its {@code module.xml} descriptor.
+     * Adds third-party module files.
      *
-     * @param path the path to the module file to add.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if the module path does not exist.
+     * @param paths module file paths
+     * @return this container
+     * @throws FileNotFoundException if a module does not exist
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withThirdPartyModule(Path path) throws FileNotFoundException {
-        checkNotRunning();
-        addThirdPartyModule(path);
-        return self();
-    }
-
-    /**
-     * Include a third party module when initializing the gateway.
-     *
-     * @param path the path to the module file to add.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if the module path does not exist.
-     */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withThirdPartyModule(String path) throws FileNotFoundException {
-        return withThirdPartyModule(Path.of(path));
-    }
-
-    /**
-     * Include third party modules when initializing the gateway.
-     *
-     * @param paths the paths to the module files to add.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if a module path does not exist.
-     */
-    @SuppressWarnings("unused")
     public IgnitionContainer withThirdPartyModules(Path... paths) throws FileNotFoundException {
-        checkNotRunning();
-        this.thirdPartyModules.clear();
+        Objects.requireNonNull(paths, "paths");
+
+        Set<Path> modules = new LinkedHashSet<>();
 
         for (Path path : paths) {
-            addThirdPartyModule(path);
+            Objects.requireNonNull(path, "Module path cannot be null");
+
+            if (!Files.isRegularFile(path)) {
+                throw new FileNotFoundException("module '%s' does not exist".formatted(path));
+            }
+
+            modules.add(path);
         }
 
-        return self();
+        Set<Path> immutableModules = Collections.unmodifiableSet(modules);
+
+        return use(THIRD_PARTY_MODULE_INSTALLATION, spec -> spec.thirdPartyModules(immutableModules));
     }
 
     /**
-     * Include third party modules when initializing the gateway.
+     * Adds third-party module files.
      *
-     * @param paths the paths to the module files to add.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     * @throws FileNotFoundException if a module path does not exist.
+     * @param paths module file paths
+     * @return this container
+     * @throws FileNotFoundException if a module does not exist
      */
     public IgnitionContainer withThirdPartyModules(String... paths) throws FileNotFoundException {
-        return this.withThirdPartyModules(Arrays.stream(paths).map(Path::of).toArray(Path[]::new));
+        Objects.requireNonNull(paths, "paths");
+
+        Path[] convertedPaths = Arrays.stream(paths)
+                .map(path -> Path.of(Objects.requireNonNull(path, "Module path cannot be null")))
+                .toArray(Path[]::new);
+
+        return withThirdPartyModules(convertedPaths);
     }
 
     /**
-     * Enable or disable quick start mode.
+     * Enables or disables Gateway Quick Start.
      *
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param quickStartEnabled Quick Start state
+     * @return this container
      */
-    @SuppressWarnings("unused")
-    public IgnitionContainer withQuickStart() {
-        checkNotRunning();
-        this.quickStartEnabled = true;
-        return self();
-    }
-
-    /**
-     * Set quick start mode.
-     *
-     * @param quickStartEnabled the quickstart mode setting to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     */
-    @SuppressWarnings("unused")
     public IgnitionContainer withQuickStart(boolean quickStartEnabled) {
-        checkNotRunning();
-        this.quickStartEnabled = quickStartEnabled;
-        return self();
+        return use(QUICK_START_CONTROL, spec -> spec.quickStartEnabled(quickStartEnabled));
     }
 
     /**
-     * Set gateway timezone.
+     * Sets the container timezone.
      *
-     * @param timezone the gateway timezone to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param timezone timezone identifier
+     * @return this container
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withTimezone(String timezone) {
-        checkNotRunning();
-        this.timezone = timezone;
-        return self();
+        Objects.requireNonNull(timezone, "timezone");
+
+        return configureSpecification(spec -> spec.timezone(timezone));
     }
 
     /**
-     * Set the UID of the process running the Ignition gateway.
+     * Sets the Ignition process user ID.
      *
-     * @param uid the UID to use.
-     * @return this {@link IgnitionContainer} for chaining purposes.
+     * @param uid process user ID
+     * @return this container
      */
-    @SuppressWarnings("unused")
     public IgnitionContainer withUid(int uid) {
-        checkNotRunning();
-        this.uid = uid;
-        return self();
+        return use(PROCESS_IDENTITY, spec -> spec.uid(uid));
     }
 
     /**
-     * Set supplemental JVM/Wrapper/Gateway arguments.
-     * @param additionalArgs one or more additional arguments.
-     * @return this {@link IgnitionContainer} for chaining purposes.
-     */
-    public IgnitionContainer withAdditionalArgs(String... additionalArgs) {
-        checkNotRunning();
-        this.additionalArgs = List.of(additionalArgs);
-        return self();
-    }
-
-    /**
-     * Get the gateway admin username.
+     * Sets supplemental startup arguments.
      *
-     * @return the gateway admin username.
+     * @param arguments startup arguments
+     * @return this container
      */
-    @SuppressWarnings("unused")
+    public IgnitionContainer withAdditionalArgs(String... arguments) {
+        Objects.requireNonNull(arguments, "arguments");
+
+        List<String> immutableArguments = List.copyOf(Arrays.asList(arguments));
+
+        return use(SUPPLEMENTAL_ARGUMENTS, spec -> spec.additionalArguments(immutableArguments));
+    }
+
+    /**
+     * Returns the parsed Ignition image version.
+     *
+     * @return image version
+     */
+    public IgnitionVersion getIgnitionVersion() {
+        return ignitionVersion;
+    }
+
+    /**
+     * Returns the selected compatibility profile.
+     *
+     * @return compatibility profile
+     */
+    public IgnitionProfile getProfile() {
+        return profile;
+    }
+
+    /**
+     * Returns the configured administrator username.
+     *
+     * @return username, or {@code null} when unset
+     */
     public String getUsername() {
-        return username;
+        GatewayCredentials credentials = specification.credentials();
+
+        return credentials == null ? null : credentials.username();
     }
 
     /**
-     * Get the gateway admin password.
+     * Returns the configured administrator password.
      *
-     * @return the gateway admin password.
+     * @return password, or {@code null} when unset
      */
-    @SuppressWarnings("unused")
     public String getPassword() {
-        return password;
+        GatewayCredentials credentials = specification.credentials();
+
+        return credentials == null ? null : credentials.password();
     }
 
     /**
-     * Get the mapped gateway HTTP port.
+     * Returns the mapped Gateway HTTP port.
      *
-     * @return the mapped gateway HTTP port.
+     * @return mapped port
      */
-    @SuppressWarnings("unused")
     public int getMappedGatewayPort() {
-        return getMappedPort(GATEWAY_PORT);
+        return getMappedEndpointPort(IgnitionEndpoint.GATEWAY_HTTP);
     }
 
     /**
-     * Get the mapped gateway HTTPS port.
+     * Returns the mapped Gateway HTTPS port.
      *
-     * @return the mapped gateway HTTPS port.
+     * @return mapped port
      */
-    @SuppressWarnings("unused")
     public int getMappedGatewaySslPort() {
-        return getMappedPort(GATEWAY_SSL_PORT);
+        return getMappedEndpointPort(IgnitionEndpoint.GATEWAY_HTTPS);
     }
 
     /**
-     * Get the mapped gateway GAN (gateway area network) port.
+     * Returns the mapped Gateway Network port.
      *
-     * @return the mapped gateway GAN port.
+     * @return mapped port
      */
-    @SuppressWarnings("unused")
     public int getMappedGatewayGanPort() {
-        return getMappedPort(GAN_PORT);
+        return getMappedEndpointPort(IgnitionEndpoint.GATEWAY_NETWORK);
     }
 
     /**
-     * Get the mapped remote JVM debugging port.
+     * Returns the mapped debugger port.
      *
-     * @return the mapped remote JVM debugging port.
+     * @return mapped port
      */
-    @SuppressWarnings("unused")
     public int getMappedDebugPort() {
-        return getMappedPort(DEBUG_PORT);
+        return getMappedEndpointPort(IgnitionEndpoint.DEBUG);
     }
 
     /**
-     * Get the mapped OPC-UA server port.
+     * Returns the mapped OPC UA port.
      *
-     * @return the mapped OPC-USA server port.
+     * @return mapped port
      */
-    @SuppressWarnings("unused")
     public int getMappedOpcUaPort() {
-        return getMappedPort(OPCUA_PORT);
+        return getMappedEndpointPort(IgnitionEndpoint.OPC_UA);
     }
 
     /**
-     * Get the URL of the gateway web interface (using HTTP).
+     * Returns the Gateway HTTP URL.
      *
-     * @return the URL of the gateway web interface.
+     * @return Gateway URL
      */
-    @SuppressWarnings("unused")
     public String getGatewayUrl() {
-        return String.format("http://%s:%d", getHost(), getMappedGatewayPort());
+        return getGatewayUrl(false);
     }
 
     /**
-     * Get the gateway's OPC UA URL.
-     * Only valid if {@link GatewayModule#OPC_UA} is enabled.
+     * Returns the Gateway URL.
      *
-     * @return the gateway's OPC UA URL.
+     * @param ssl whether to use HTTPS
+     * @return Gateway URL
      */
-    @SuppressWarnings("unused")
-    public String getOpcUaUrl() {
-        return String.format("opc.tcp://%s:%d", getHost(), getMappedOpcUaPort());
-    }
-
-    /**
-     * Get the gateway's OPC UA Discovery URL.
-     * Only valid if {@link GatewayModule#OPC_UA} is enabled.
-     *
-     * @return the gateway's OPC UA Discovery URL.
-     */
-    @SuppressWarnings("unused")
-    public String getOpcUaDiscoveryUrl() {
-        return String.format("%s/discovery", getOpcUaUrl());
-    }
-
-    /**
-     * Get the URL of the gateway web interface.
-     *
-     * @param ssl use HTTPS when `true`
-     * @return the URL of the gateway web interface.
-     */
-    @SuppressWarnings("unused")
     public String getGatewayUrl(boolean ssl) {
-        String mode = ssl ? "https" : "http";
-        Integer port = ssl ? getMappedGatewaySslPort() : getMappedGatewayPort();
-        return String.format("%s://%s:%d", mode, getHost(), port);
+        String scheme = ssl ? "https" : "http";
+
+        int port = ssl ? getMappedGatewaySslPort() : getMappedGatewayPort();
+
+        return "%s://%s:%d".formatted(scheme, getHost(), port);
     }
 
     /**
-     * Checks if already running and if so raises an exception to prevent too-late
-     * setters.
+     * Returns the OPC UA server URL.
+     *
+     * @return OPC UA URL
      */
-    private void checkNotRunning() {
-        if (isRunning()) {
-            throw new IllegalStateException("Setter can only be called before the container is running");
-        }
+    public String getOpcUaUrl() {
+        return "opc.tcp://%s:%d".formatted(getHost(), getMappedOpcUaPort());
     }
 
+    /**
+     * Returns the OPC UA discovery URL.
+     *
+     * @return discovery URL
+     */
+    public String getOpcUaDiscoveryUrl() {
+        return getOpcUaUrl() + "/discovery";
+    }
+
+    /**
+     * Returns the mapped port for a logical endpoint.
+     *
+     * @param endpoint logical endpoint
+     * @return mapped port
+     * @throws IllegalStateException if the endpoint is not exposed
+     */
+    public int getMappedEndpointPort(IgnitionEndpoint endpoint) {
+        Objects.requireNonNull(endpoint, "endpoint");
+
+        int containerPort = profile.endpoints().port(endpoint);
+
+        if (!getExposedPorts().contains(containerPort)) {
+            throw new IllegalStateException(
+                    "Ignition endpoint %s is not exposed for the current container configuration".formatted(endpoint));
+        }
+
+        return getMappedPort(containerPort);
+    }
+
+    /**
+     * Returns the normalized container specification.
+     *
+     * @return container specification
+     */
+    protected IgnitionContainerSpec specification() {
+        return specification;
+    }
+
+    /** Builds and applies the profile-generated container configuration. */
     @Override
     protected void configure() {
         super.configure();
 
-        applyCommands();
-        applyEnvironmentVariables();
+        specification.validate();
 
-        exposePorts();
+        ContainerPlan.Builder plan = ContainerPlan.builder();
 
-        mapGatewayBackup();
-        mapThirdPartyModules();
-    }
+        profile.applyDefaults(ignitionVersion, specification, plan);
 
-    private void exposePorts() {
-        addExposedPorts(GATEWAY_PORT, GATEWAY_SSL_PORT);
-
-        if (getEnabledModuleIdentifiers().contains(GatewayModule.OPC_UA.getIdentifier())) {
-            addExposedPorts(OPCUA_PORT);
+        for (IgnitionCapability capability : specification.requestedCapabilities()) {
+            applyRequestedCapability(capability, plan);
         }
 
-        if (debugMode) {
-            addExposedPorts(DEBUG_PORT);
+        applyPlan(plan.build());
+    }
+
+    /** Logs that the Ignition container is starting. */
+    @Override
+    protected void containerIsStarting(InspectContainerResponse containerInfo) {
+        logger().debug("Ignition {} container is starting using profile '{}'", ignitionVersion, profile.name());
+    }
+
+    /** Logs that the Ignition container is ready. */
+    @Override
+    protected void containerIsStarted(InspectContainerResponse containerInfo) {
+        logger().info("Ignition {} container is ready. Gateway Web UI: {}", ignitionVersion, getGatewayUrl());
+    }
+
+    /**
+     * Records a capability and its requested configuration.
+     */
+    private IgnitionContainer use(IgnitionCapability capability, Consumer<IgnitionContainerSpec> configuration) {
+        Objects.requireNonNull(capability, "capability");
+
+        Objects.requireNonNull(configuration, "configuration");
+
+        return configureSpecification(spec -> {
+            configuration.accept(spec);
+            spec.request(capability);
+        });
+    }
+
+    /**
+     * Records profile-independent configuration.
+     */
+    private IgnitionContainer configureSpecification(Consumer<IgnitionContainerSpec> configuration) {
+        checkNotRunning();
+
+        Objects.requireNonNull(configuration, "configuration").accept(specification);
+
+        return self();
+    }
+
+    /**
+     * Applies a requested capability using the compatibility policy.
+     */
+    private void applyRequestedCapability(IgnitionCapability capability, ContainerPlan.Builder plan) {
+        CapabilitySupport support = profile.supportFor(capability);
+
+        if (support.status() == CapabilityStatus.UNSUPPORTED) {
+            logger().warn(
+                            "Ignition {} profile '{}' does not support capability {}: {}. The requested configuration will be ignored.",
+                            ignitionVersion,
+                            profile.name(),
+                            capability,
+                            support.reason());
+
+            return;
+        }
+
+        if (!support.isAvailableIn(ignitionVersion)) {
+            logger().warn(
+                            "Capability {} is documented for Ignition {} or newer, but image {} was requested. The '{}' profile translation will still be applied.",
+                            capability,
+                            support.since(),
+                            ignitionVersion,
+                            profile.name());
+        }
+
+        boolean applied = profile.apply(capability, ignitionVersion, specification, plan);
+
+        if (!applied) {
+            logger().warn(
+                            "Ignition profile '{}' declares capability {} but has no applier. The requested configuration will be ignored.",
+                            profile.name(),
+                            capability);
         }
     }
 
-    private void mapGatewayBackup() {
-        if (gatewayBackup != null) {
-            this.withCopyFileToContainer(MountableFile.forHostPath(gatewayBackup), "/restore.gwbk");
-        }
+    /**
+     * Applies a normalized plan to Testcontainers.
+     *
+     * <p>Raw environment and command overrides take precedence.
+     */
+    private void applyPlan(ContainerPlan plan) {
+        plan.warnings().forEach(warning -> logger().warn(warning));
+
+        applyEnvironment(plan);
+        applyCommand(plan);
+        applyExposedPorts(plan);
+        applyFileCopies(plan);
+        applyGeneratedFiles(plan);
     }
 
-    private void mapThirdPartyModules() {
-        for (Path path : thirdPartyModules.keySet()) {
-            MountableFile file = MountableFile.forHostPath(path);
-            String containerPath = Path.of(
-                            INSTALL_DIR, "user-lib", "modules", path.toFile().getName())
-                    .toString();
-            this.withCopyFileToContainer(file, containerPath);
-        }
-    }
+    /**
+     * Applies profile-generated environment variables.
+     */
+    private void applyEnvironment(ContainerPlan plan) {
+        Set<String> existingEnvironment = Set.copyOf(getEnvMap().keySet());
 
-    private void applyCommands() {
-        List<String> commands = new ArrayList<>();
-        if (debugMode) commands.add("-d");
-        if (maxMemory != null) commands.addAll(List.of("-m", maxMemory));
-        if (name != null) commands.addAll(List.of("-n", name));
-        if (gatewayBackup != null) commands.addAll(List.of("-r", "/restore.gwbk"));
+        for (Map.Entry<String, String> entry : plan.environment().entrySet()) {
+            if (existingEnvironment.contains(entry.getKey())) {
+                logger().debug("Retaining raw environment override for {}", entry.getKey());
 
-        if (developerMode || additionalArgs != null) {
-            commands.add("--");
-            if (developerMode) commands.add("-Dignition.allowunsignedmodules=true");
-            if (additionalArgs != null) commands.addAll(additionalArgs);
-        }
-
-        if (!commands.isEmpty()) {
-            this.withCommand(commands.toArray(String[]::new));
-        }
-    }
-
-    private void applyEnvironmentVariables() {
-        if (licenseAccepted) addEnv("ACCEPT_IGNITION_EULA", "Y");
-        addEnv("DISABLE_QUICKSTART", String.valueOf(!quickStartEnabled));
-        if (username != null) addEnv("GATEWAY_ADMIN_USERNAME", username);
-        if (password != null) addEnv("GATEWAY_ADMIN_PASSWORD", password);
-
-        addEnv("GATEWAY_GAN_PORT", String.valueOf(GAN_PORT));
-        addEnv("GATEWAY_HTTP_PORT", String.valueOf(GATEWAY_PORT));
-        addEnv("GATEWAY_HTTPS_PORT", String.valueOf(GATEWAY_SSL_PORT));
-
-        if (gatewayBackup != null) addEnv("GATEWAY_RESTORE_DISABLED", String.valueOf(restoreDisabled));
-        addEnv("GATEWAY_MODULES_ENABLED", getEnabledModulesString());
-        String acceptedModuleCertificates = getAcceptedModuleCertificatesString();
-        if (!acceptedModuleCertificates.isEmpty()) addEnv("ACCEPT_MODULE_CERTS", acceptedModuleCertificates);
-
-        addEnv("IGNITION_EDITION", edition.toString());
-        if (gid != null) addEnv("IGNITION_GID", gid.toString());
-        if (uid != null) addEnv("IGNITION_UID", uid.toString());
-
-        if (activationToken != null) addEnv("IGNITION_ACTIVATION_TOKEN", activationToken);
-        if (licenseKey != null) addEnv("IGNITION_LICENSE_KEY", licenseKey);
-
-        addEnv("TZ", timezone);
-    }
-
-    private String getEnabledModulesString() {
-        return String.join(",", getEnabledModuleIdentifiers());
-    }
-
-    private Set<String> getEnabledModuleIdentifiers() {
-        Set<String> identifiers = new LinkedHashSet<>();
-        modules.stream().map(IgnitionModule::getIdentifier).forEach(identifiers::add);
-        for (ThirdPartyModuleDescriptor descriptor : thirdPartyModules.values()) {
-            identifiers.addAll(descriptor.gatewayDependencies());
-            identifiers.add(descriptor.identifier());
-        }
-        if (identifiers.isEmpty()) identifiers.add(GatewayModule.OPC_UA.getIdentifier());
-        return identifiers;
-    }
-
-    private String getAcceptedModuleCertificatesString() {
-        Set<String> identifiers = new LinkedHashSet<>();
-        thirdPartyModules.values().stream()
-                .map(ThirdPartyModuleDescriptor::identifier)
-                .forEach(identifiers::add);
-        return String.join(",", identifiers);
-    }
-
-    private void addThirdPartyModule(Path path) throws FileNotFoundException {
-        if (!Files.isRegularFile(path)) {
-            throw new FileNotFoundException(String.format("module '%s' does not exist", path));
-        }
-
-        Path modulePath = path.toAbsolutePath().normalize();
-        thirdPartyModules.put(modulePath, readThirdPartyModuleDescriptor(modulePath));
-    }
-
-    private static ThirdPartyModuleDescriptor readThirdPartyModuleDescriptor(Path modulePath) {
-        try (ZipFile moduleFile = new ZipFile(modulePath.toFile())) {
-            ZipEntry descriptorEntry = moduleFile.getEntry("module.xml");
-            if (descriptorEntry == null) {
-                throw new IllegalArgumentException("Module archive does not contain module.xml: " + modulePath);
+                continue;
             }
 
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newDefaultInstance();
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            factory.setXIncludeAware(false);
-            factory.setExpandEntityReferences(false);
-
-            try (InputStream input = moduleFile.getInputStream(descriptorEntry)) {
-                Element module = (Element) factory.newDocumentBuilder()
-                        .parse(input)
-                        .getElementsByTagName("module")
-                        .item(0);
-                if (module == null) {
-                    throw new IllegalArgumentException(
-                            "module.xml does not contain a module descriptor: " + modulePath);
-                }
-
-                String identifier = requiredElementText(module, "id", modulePath);
-                Set<String> gatewayDependencies = new LinkedHashSet<>();
-                NodeList dependencies = module.getElementsByTagName("depends");
-                for (int index = 0; index < dependencies.getLength(); index++) {
-                    Element dependency = (Element) dependencies.item(index);
-                    String dependencyIdentifier = dependency.getTextContent().trim();
-                    if ("G".equals(dependency.getAttribute("scope")) && !dependencyIdentifier.isEmpty()) {
-                        gatewayDependencies.add(dependencyIdentifier);
-                    }
-                }
-
-                return new ThirdPartyModuleDescriptor(identifier, Set.copyOf(gatewayDependencies));
-            }
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Unable to read module descriptor: " + modulePath, e);
+            addEnv(entry.getKey(), entry.getValue());
         }
     }
 
-    private static String requiredElementText(Element module, String elementName, Path modulePath) {
-        NodeList elements = module.getElementsByTagName(elementName);
-        if (elements.getLength() == 0 || elements.item(0).getTextContent().isBlank()) {
-            throw new IllegalArgumentException("module.xml does not contain a " + elementName + ": " + modulePath);
+    /**
+     * Applies the profile-generated container command.
+     */
+    private void applyCommand(ContainerPlan plan) {
+        if (plan.command().isEmpty()) {
+            return;
         }
-        return elements.item(0).getTextContent().trim();
+
+        String[] existingCommand = getCommandParts();
+
+        if (existingCommand != null && existingCommand.length > 0) {
+            logger().debug("Retaining raw container command override; profile-generated command was not applied");
+
+            return;
+        }
+
+        setCommand(plan.command().toArray(String[]::new));
     }
 
-    @Override
-    protected void containerIsStarting(final InspectContainerResponse containerInfo) {
-        logger().debug("Ignition container is starting, performing configuration.");
+    /**
+     * Applies profile-generated exposed ports.
+     */
+    private void applyExposedPorts(ContainerPlan plan) {
+        plan.exposedPorts().forEach(this::addExposedPort);
     }
 
-    @Override
-    protected void containerIsStarted(final InspectContainerResponse containerInfo) {
-        logger().info("Ignition container is ready! Gateway Web UI is available at: {}", getGatewayUrl());
+    /**
+     * Applies profile-generated host file copies.
+     */
+    private void applyFileCopies(ContainerPlan plan) {
+        for (ContainerFileCopy copy : plan.fileCopies()) {
+            MountableFile source = MountableFile.forHostPath(copy.source(), copy.mode());
+
+            withCopyToContainer(source, copy.destination());
+        }
     }
 
-    private record ThirdPartyModuleDescriptor(String identifier, Set<String> gatewayDependencies) {}
+    /**
+     * Applies profile-generated in-memory files.
+     */
+    private void applyGeneratedFiles(ContainerPlan plan) {
+        for (GeneratedContainerFile file : plan.generatedFiles()) {
+            Transferable contents = Transferable.of(file.contents(), file.mode());
+
+            withCopyToContainer(contents, file.destination());
+        }
+    }
+
+    /**
+     * Ensures that the container has not started.
+     */
+    private void checkNotRunning() {
+        if (isRunning()) {
+            throw new IllegalStateException("Configuration methods can only be called before the container is running");
+        }
+    }
 }

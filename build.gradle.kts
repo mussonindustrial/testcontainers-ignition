@@ -57,6 +57,30 @@ tasks.withType(Test::class).configureEach {
     }
 }
 
+tasks.test {
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
+}
+
+val integrationTest by tasks.registering(Test::class) {
+    description = "Runs Ignition container integration tests"
+    group = "verification"
+
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags("integration")
+    }
+
+    shouldRunAfter(tasks.test)
+}
+
+tasks.named("check") {
+    dependsOn(integrationTest)
+}
+
 val stagingDir: Provider<Directory> = layout.buildDirectory.dir("staging-deploy")
 
 publishing {
