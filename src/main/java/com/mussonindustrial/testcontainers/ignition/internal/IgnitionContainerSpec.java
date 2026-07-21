@@ -3,12 +3,16 @@ package com.mussonindustrial.testcontainers.ignition.internal;
 import com.mussonindustrial.testcontainers.ignition.IgnitionCapability;
 import com.mussonindustrial.testcontainers.ignition.IgnitionGatewayEdition;
 import com.mussonindustrial.testcontainers.ignition.IgnitionModule;
+import com.mussonindustrial.testcontainers.ignition.ThirdPartyModule;
+import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -57,8 +61,8 @@ public final class IgnitionContainerSpec {
      */
     private Set<IgnitionModule> modules = Set.of();
 
-    /** Third-party module files to install. */
-    private Set<Path> thirdPartyModules = Set.of();
+    /** Parsed third-party modules keyed by the archive path. */
+    private final Map<Path, ThirdPartyModule> thirdPartyModules = new LinkedHashMap<>();
 
     /** User ID used by the Ignition process. */
     private Integer uid;
@@ -160,7 +164,7 @@ public final class IgnitionContainerSpec {
      * @param password administrator password
      */
     public void credentials(String username, String password) {
-        this.credentials =
+        credentials =
                 new GatewayCredentials(requireNonBlank(username, "username"), requireNonBlank(password, "password"));
     }
 
@@ -180,7 +184,7 @@ public final class IgnitionContainerSpec {
      * @param restoreDisabled whether disabled resources remain disabled
      */
     public void gatewayRestore(Path backup, boolean restoreDisabled) {
-        this.gatewayRestore = new GatewayRestore(Objects.requireNonNull(backup, "backup"), restoreDisabled);
+        gatewayRestore = new GatewayRestore(Objects.requireNonNull(backup, "backup"), restoreDisabled);
     }
 
     /**
@@ -291,29 +295,58 @@ public final class IgnitionContainerSpec {
     }
 
     /**
-     * Sets the third-party modules to install.
+     * Adds a third-party module archive.
      *
-     * @param thirdPartyModules module files
+     * <p>The module descriptor is read immediately.
+     *
+     * @param archive module archive
+     * @throws FileNotFoundException if a module cannot be read
      */
-    public void thirdPartyModules(Set<Path> thirdPartyModules) {
-        Objects.requireNonNull(thirdPartyModules, "thirdPartyModules");
-
-        LinkedHashSet<Path> copy = new LinkedHashSet<>();
-
-        for (Path path : thirdPartyModules) {
-            copy.add(Objects.requireNonNull(path, "thirdPartyModules cannot contain null"));
-        }
-
-        this.thirdPartyModules = Collections.unmodifiableSet(copy);
+    public void addThirdPartyModule(Path archive) throws FileNotFoundException {
+        addThirdPartyModule(ThirdPartyModule.read(archive));
     }
 
     /**
-     * Returns the third-party modules to install.
+     * Adds a parsed third-party module.
      *
-     * @return immutable module file set
+     * <p>A module with the same archive path replaces the previous entry
+     * without changing its position.
+     *
+     * @param module third-party module
      */
-    public Set<Path> thirdPartyModules() {
-        return thirdPartyModules;
+    public void addThirdPartyModule(ThirdPartyModule module) {
+        Objects.requireNonNull(module, "module");
+
+        thirdPartyModules.put(module.archive(), module);
+    }
+
+    /**
+     * Replaces the configured third-party modules.
+     *
+     * @param modules parsed third-party modules
+     */
+    public void thirdPartyModules(Iterable<ThirdPartyModule> modules) {
+        Objects.requireNonNull(modules, "modules");
+
+        Map<Path, ThirdPartyModule> replacements = new LinkedHashMap<>();
+
+        for (ThirdPartyModule module : modules) {
+            ThirdPartyModule validated = Objects.requireNonNull(module, "modules cannot contain null");
+
+            replacements.put(validated.archive(), validated);
+        }
+
+        thirdPartyModules.clear();
+        thirdPartyModules.putAll(replacements);
+    }
+
+    /**
+     * Returns the configured third-party modules.
+     *
+     * @return immutable module list
+     */
+    public List<ThirdPartyModule> thirdPartyModules() {
+        return List.copyOf(thirdPartyModules.values());
     }
 
     /**
@@ -437,14 +470,11 @@ public final class IgnitionContainerSpec {
         }
     }
 
-    /**
-     * Validates the configuration required by one capability.
-     */
+    /** Validates the configuration required by one capability. */
     private void validateRequestedCapability(IgnitionCapability capability) {
         switch (capability) {
-            case LICENSE_ACCEPTANCE -> {
+            case LICENSE_ACCEPTANCE ->
                 requireConfigured(licenseAccepted, capability, "The Ignition license was not accepted");
-            }
 
             case LEASED_LICENSE_ACTIVATION -> {
                 requireConfigured(licenseKey != null, capability, "A license key was not configured");
@@ -452,10 +482,9 @@ public final class IgnitionContainerSpec {
                 requireConfigured(activationToken != null, capability, "An activation token was not configured");
             }
 
-            case INITIAL_ADMIN_CONFIGURATION -> {
+            case INITIAL_ADMIN_CONFIGURATION ->
                 requireConfigured(
                         credentials != null, capability, "Gateway administrator credentials " + "were not configured");
-            }
 
             case GATEWAY_RESTORE -> {
                 requireConfigured(gatewayRestore != null, capability, "A Gateway backup was not configured");
@@ -467,28 +496,27 @@ public final class IgnitionContainerSpec {
                                 + (gatewayRestore == null ? "<not configured>" : gatewayRestore.backup()));
             }
 
-            case GATEWAY_NAME -> {
+            case GATEWAY_NAME ->
                 requireConfigured(gatewayName != null, capability, "A Gateway name was not configured");
-            }
 
-            case GATEWAY_EDITION -> {
+            case GATEWAY_EDITION ->
                 requireConfigured(edition != null, capability, "A Gateway edition was not configured");
+
+            case DEBUG_MODE -> {
+                // Boolean configuration is always valid.
             }
 
-            case DEBUG_MODE -> {}
+            case MAX_MEMORY -> requireConfigured(maxMemory != null, capability, "Maximum memory was not configured");
 
-            case MAX_MEMORY -> {
-                requireConfigured(maxMemory != null, capability, "Maximum memory was not configured");
-            }
-
-            case BUILT_IN_MODULE_SELECTION -> {
+            case BUILT_IN_MODULE_SELECTION ->
                 requireConfigured(modules != null, capability, "The built-in module selection " + "was not configured");
-            }
 
             case THIRD_PARTY_MODULE_INSTALLATION -> {
-                for (Path module : thirdPartyModules) {
+                for (ThirdPartyModule module : thirdPartyModules.values()) {
                     requireConfigured(
-                            Files.isRegularFile(module), capability, "Third-party module does not exist: " + module);
+                            Files.isRegularFile(module.archive()),
+                            capability,
+                            "Third-party module does not exist: " + module.archive());
                 }
             }
 
@@ -498,20 +526,12 @@ public final class IgnitionContainerSpec {
                 requireConfigured(gid != null, capability, "A process GID was not configured");
             }
 
-            case QUICK_START_CONTROL -> {
+            case QUICK_START_CONTROL ->
                 requireConfigured(quickStartEnabled != null, capability, "Quick Start behavior was not configured");
-            }
 
-            case SUPPLEMENTAL_ARGUMENTS -> {
+            case SUPPLEMENTAL_ARGUMENTS ->
                 requireConfigured(
                         additionalArguments != null, capability, "Supplemental arguments were not configured");
-            }
-        }
-
-        boolean valid = true;
-
-        if (!valid) {
-            throw new AssertionError("Capability validation unexpectedly failed: " + capability);
         }
     }
 
@@ -525,9 +545,7 @@ public final class IgnitionContainerSpec {
         }
     }
 
-    /**
-     * Validates and normalizes a required string.
-     */
+    /** Validates and normalizes a required string. */
     private static String requireNonBlank(String value, String name) {
         Objects.requireNonNull(value, name);
 

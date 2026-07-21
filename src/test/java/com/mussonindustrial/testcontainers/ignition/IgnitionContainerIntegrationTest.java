@@ -6,8 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mussonindustrial.testcontainers.IgnitionTestImage;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -15,6 +18,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder;
@@ -23,10 +27,10 @@ import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy;
 import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.containers.output.WaitingConsumer;
@@ -36,6 +40,7 @@ import org.testcontainers.containers.output.WaitingConsumer;
 class IgnitionContainerIntegrationTest {
 
     private static final String USERNAME = "admin";
+
     private static final String PASSWORD = "password";
 
     private static final String RUNNING_RESPONSE = "{\"state\":\"RUNNING\"}";
@@ -44,7 +49,13 @@ class IgnitionContainerIntegrationTest {
 
     private static final Path OPC_UA_BACKUP = Path.of("src/test/resources/opcua.gwbk");
 
+    private static final String THERMODYNAMICS_MODULE_ID = "com.mussonindustrial.embr.thermo";
+
+    private static final String THERMODYNAMICS_START_MESSAGE = "Starting up module '" + THERMODYNAMICS_MODULE_ID + "'";
+
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(15);
+
+    private static final Duration MODULE_START_TIMEOUT = Duration.ofSeconds(30);
 
     private static final HttpClient HTTP_CLIENT =
             HttpClient.newBuilder().connectTimeout(HTTP_TIMEOUT).build();
@@ -143,26 +154,53 @@ class IgnitionContainerIntegrationTest {
         }
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("representativeImages")
-    @EnabledIf("thirdPartyModuleConfigured")
-    void installsThirdPartyModule(IgnitionTestImage image) throws Exception {
-        Path module = Path.of(requiredEnvironmentVariable("IGNITION_TEST_THIRD_PARTY_MODULE"));
-
-        String startupLog = requiredEnvironmentVariable("IGNITION_TEST_THIRD_PARTY_MODULE_LOG");
+    @ParameterizedTest(name = "{0} starts {1}")
+    @MethodSource("thirdPartyModuleCases")
+    void startsThirdPartyModule(IgnitionTestImage image, String moduleResource) {
+        Path module = testResource(moduleResource);
 
         WaitingConsumer moduleLogs = new WaitingConsumer();
 
         try (IgnitionContainer ignition = new IgnitionContainer(image.getDockerImageName())) {
 
             ignition.withCredentials(USERNAME, PASSWORD)
-                    .withThirdPartyModules(module)
+                    .withThirdPartyModule(module)
                     .withLogConsumer(moduleLogs)
                     .acceptLicense();
 
             ignition.start();
 
-            moduleLogs.waitUntil(frame -> frame.getUtf8String().contains(startupLog), 30, TimeUnit.SECONDS);
+            try {
+                moduleLogs.waitUntil(
+                        frame -> frame.getUtf8String().contains(THERMODYNAMICS_START_MESSAGE),
+                        Math.toIntExact(MODULE_START_TIMEOUT.toSeconds()),
+                        TimeUnit.SECONDS);
+            } catch (TimeoutException exception) {
+                throw new AssertionError(
+                        "Module %s did not start on %s.%n Module archive: %s%n Gateway logs:%n%s"
+                                .formatted(THERMODYNAMICS_MODULE_ID, image, moduleResource, ignition.getLogs()),
+                        exception);
+            }
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Stream<Arguments> thirdPartyModuleCases() {
+        return Stream.of(Arguments.of(IgnitionTestImage.IGNITION_8_3_8, "Embr-Thermodynamics-Ignition83-3.0.3.modl"));
+    }
+
+    private static Path testResource(String resourceName) {
+        URL resource = IgnitionContainerIntegrationTest.class.getResource("/" + resourceName);
+
+        if (resource == null) {
+            throw new IllegalArgumentException("Test resource does not exist: " + resourceName);
+        }
+
+        try {
+            return Path.of(resource.toURI());
+        } catch (URISyntaxException exception) {
+            throw new IllegalArgumentException("Invalid test resource URI: " + resourceName, exception);
         }
     }
 
@@ -190,26 +228,5 @@ class IgnitionContainerIntegrationTest {
 
     private static Stream<IgnitionTestImage> representativeImages() {
         return IgnitionTestImage.representativeImages();
-    }
-
-    private static boolean thirdPartyModuleConfigured() {
-        return isNonBlankEnvironmentVariable("IGNITION_TEST_THIRD_PARTY_MODULE")
-                && isNonBlankEnvironmentVariable("IGNITION_TEST_THIRD_PARTY_MODULE_LOG");
-    }
-
-    private static boolean isNonBlankEnvironmentVariable(String name) {
-        String value = System.getenv(name);
-
-        return value != null && !value.isBlank();
-    }
-
-    private static String requiredEnvironmentVariable(String name) {
-        String value = Objects.requireNonNull(System.getenv(name), () -> "Environment variable is not set: " + name);
-
-        if (value.isBlank()) {
-            throw new IllegalStateException("Environment variable is blank: " + name);
-        }
-
-        return value;
     }
 }

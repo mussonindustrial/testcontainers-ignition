@@ -1,9 +1,6 @@
 package com.mussonindustrial.testcontainers.ignition.compatibility;
 
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.mussonindustrial.testcontainers.IgnitionTestImage;
 import com.mussonindustrial.testcontainers.ignition.*;
@@ -13,6 +10,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,25 +25,47 @@ import org.testcontainers.utility.DockerImageName;
 @Execution(ExecutionMode.SAME_THREAD)
 class IgnitionCapabilityTest {
 
-    private static final String AVAILABILITY_WARNING_TEMPLATE = "Capability {} is documented for Ignition {} or newer, "
-            + "but image {} was requested. The '{}' profile "
-            + "translation will still be applied.";
+    private static final String AVAILABILITY_WARNING_TEMPLATE =
+            "Capability {} is documented for Ignition {} or newer, but image {} was requested. The '{}' profile translation will still be applied.";
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(IgnitionTestImage.class)
-    void profileDeclaresEveryCapability(IgnitionTestImage image) {
+    void profileDeclaresAndResolvesEveryCapability(IgnitionTestImage image) {
         try (IgnitionContainer container = new IgnitionContainer(image.getDockerImageName())) {
 
             IgnitionProfile profile = container.getProfile();
+            CapabilityCatalog catalog = profile.capabilities();
+            IgnitionVersion version = container.getIgnitionVersion();
 
             assertAll(Arrays.stream(IgnitionCapability.values()).map(capability -> () -> {
-                CapabilitySupport support = profile.supportFor(capability);
+                assertTrue(catalog.capabilities().contains(capability), () -> "%s does not declare %s"
+                        .formatted(profile.name(), capability));
 
-                assertNotNull(support, () -> "%s does not declare %s".formatted(profile.name(), capability));
+                CapabilityCatalog.Entry entry = catalog.entry(capability);
 
-                if (support.status() == CapabilityStatus.SUPPORTED) {
-                    assertNotNull(profile.applier(capability), () -> "%s supports %s but has no applier"
-                            .formatted(profile.name(), capability));
+                CapabilityCatalog.Resolution resolution = catalog.resolve(capability, version);
+
+                if (entry instanceof CapabilityCatalog.SupportedEntry supported) {
+                    assertAll(
+                            () -> assertFalse(supported.appliers().isEmpty(), () -> "%s supports %s but has no appliers"
+                                    .formatted(profile.name(), capability)),
+                            () -> assertInstanceOf(
+                                    CapabilityCatalog.SupportedResolution.class,
+                                    resolution,
+                                    () -> "%s resolved supported capability %s as %s"
+                                            .formatted(profile.name(), capability, resolution)));
+                } else {
+                    assertAll(
+                            () -> assertInstanceOf(
+                                    CapabilityCatalog.UnsupportedEntry.class,
+                                    entry,
+                                    () -> "%s has an unknown entry type for %s: %s"
+                                            .formatted(profile.name(), capability, entry)),
+                            () -> assertInstanceOf(
+                                    CapabilityCatalog.UnsupportedResolution.class,
+                                    resolution,
+                                    () -> "%s resolved unsupported capability %s as %s"
+                                            .formatted(profile.name(), capability, resolution)));
                 }
             }));
         }
@@ -59,7 +79,6 @@ class IgnitionCapabilityTest {
             IgnitionCapability capability,
             IgnitionVersion minimumVersion,
             Consumer<IgnitionContainer> configuration) {
-
         try (CapturingIgnitionContainer container = new CapturingIgnitionContainer(image)) {
 
             configuration.accept(container);
@@ -91,8 +110,8 @@ class IgnitionCapabilityTest {
                             IgnitionCapability.GATEWAY_RESTORE,
                             IgnitionVersion.parse("8.1.7"),
                             IgnitionVersion.parse("8.1.5")),
-                    () -> "Expected a Gateway restore capability warning.%nWarnings:%n%s"
-                            .formatted(formatWarnings(container.warnings())));
+                    () -> "Expected a Gateway restore capability "
+                            + "warning.%nWarnings:%n%s".formatted(formatWarnings(container.warnings())));
         }
     }
 
@@ -106,8 +125,8 @@ class IgnitionCapabilityTest {
 
             assertFalse(
                     containsAvailabilityWarning(container, IgnitionCapability.QUICK_START_CONTROL),
-                    () -> "Unexpected capability warning for %s.%nWarnings:%n%s"
-                            .formatted(image, formatWarnings(container.warnings())));
+                    () -> "Unexpected capability warning for "
+                            + "%s.%nWarnings:%n%s".formatted(image, formatWarnings(container.warnings())));
         }
     }
 
@@ -139,7 +158,7 @@ class IgnitionCapabilityTest {
 
         return warnings.stream()
                 .map(CapturingIgnitionContainer.WarningCall::toString)
-                .collect(java.util.stream.Collectors.joining(System.lineSeparator()));
+                .collect(Collectors.joining(System.lineSeparator()));
     }
 
     private static Stream<Arguments> unavailableCapabilityCases() {

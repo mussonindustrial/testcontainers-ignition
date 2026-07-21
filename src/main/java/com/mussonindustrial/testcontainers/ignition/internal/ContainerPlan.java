@@ -131,6 +131,7 @@ public final class ContainerPlan {
     /**
      * Builds a container plan.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public static final class Builder {
 
         /** Environment variables collected by the builder. */

@@ -1,3 +1,4 @@
+import com.diffplug.spotless.LineEnding
 import org.jreleaser.model.Active
 
 plugins {
@@ -36,7 +37,8 @@ spotless {
     java {
         importOrder()
         removeUnusedImports()
-        palantirJavaFormat()
+        palantirJavaFormat("2.83.0")
+        lineEndings = LineEnding.UNIX
     }
 }
 
@@ -44,28 +46,36 @@ tasks.build {
     dependsOn(tasks.spotlessCheck)
 }
 
-tasks.withType(Test::class).configureEach {
+tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 
     maxHeapSize = "1G"
-    maxParallelForks = Runtime.getRuntime().availableProcessors().div(2)
+    maxParallelForks = Runtime.getRuntime()
+        .availableProcessors()
+        .div(2)
+        .coerceAtLeast(1)
+
     forkEvery = 1
-    reports.html.required = true
+
+    // Use the combined report instead.
+    reports.html.required = false
 
     testLogging {
         showStandardStreams = true
     }
 }
 
-tasks.test {
+val unitTest = tasks.named<Test>("test") {
+    description = "Runs unit and configuration tests"
+
     useJUnitPlatform {
         excludeTags("integration")
     }
 }
 
-val integrationTest by tasks.registering(Test::class) {
+val integrationTest = tasks.register<Test>("integrationTest") {
     description = "Runs Ignition container integration tests"
-    group = "verification"
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
 
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
@@ -74,11 +84,36 @@ val integrationTest by tasks.registering(Test::class) {
         includeTags("integration")
     }
 
-    shouldRunAfter(tasks.test)
+    shouldRunAfter(unitTest)
+
+    // Avoid starting multiple Ignition containers concurrently.
+    maxParallelForks = 1
+}
+
+val allTestReport = tasks.register<TestReport>("allTestReport") {
+    description = "Generates a combined report for all tests"
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+
+    dependsOn(unitTest, integrationTest)
+
+    destinationDirectory =
+        layout.buildDirectory.dir("reports/tests/all")
+
+    testResults.from(
+        unitTest.flatMap { it.binaryResultsDirectory },
+        integrationTest.flatMap { it.binaryResultsDirectory },
+    )
+}
+
+val allTests = tasks.register("allTests") {
+    description = "Runs all unit and integration tests"
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+
+    dependsOn(allTestReport)
 }
 
 tasks.named("check") {
-    dependsOn(integrationTest)
+    dependsOn(allTests)
 }
 
 val stagingDir: Provider<Directory> = layout.buildDirectory.dir("staging-deploy")

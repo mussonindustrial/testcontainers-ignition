@@ -15,8 +15,7 @@ import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.SU
 import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.THIRD_PARTY_MODULE_INSTALLATION;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
-import com.mussonindustrial.testcontainers.ignition.compatibility.CapabilityStatus;
-import com.mussonindustrial.testcontainers.ignition.compatibility.CapabilitySupport;
+import com.mussonindustrial.testcontainers.ignition.compatibility.*;
 import com.mussonindustrial.testcontainers.ignition.internal.ContainerFileCopy;
 import com.mussonindustrial.testcontainers.ignition.internal.ContainerPlan;
 import com.mussonindustrial.testcontainers.ignition.internal.GatewayCredentials;
@@ -27,13 +26,7 @@ import com.mussonindustrial.testcontainers.ignition.profiles.IgnitionProfiles;
 import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.images.builder.Transferable;
@@ -49,6 +42,7 @@ import org.testcontainers.utility.MountableFile;
  * <p>Unsupported capabilities are ignored with warnings. Capabilities used
  * before their documented version are applied with warnings.
  */
+@SuppressWarnings("UnusedReturnValue")
 public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
     /** Official Ignition Docker image name. */
@@ -68,6 +62,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      *
      * @param dockerImageName concrete Ignition image name
      */
+    @SuppressWarnings("unused")
     public IgnitionContainer(String dockerImageName) {
         this(DockerImageName.parse(Objects.requireNonNull(dockerImageName, "dockerImageName")));
     }
@@ -285,38 +280,68 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
-     * Adds third-party module files.
+     * Adds a third-party module.
      *
-     * @param paths module file paths
+     * <p>The module descriptor is read immediately.
+     *
+     * @param path module archive
      * @return this container
-     * @throws FileNotFoundException if a module does not exist
+     * @throws FileNotFoundException if the module cannot be read
+     */
+    public IgnitionContainer withThirdPartyModule(Path path) throws FileNotFoundException {
+        Objects.requireNonNull(path, "path");
+
+        ThirdPartyModule module = ThirdPartyModule.read(path);
+
+        return use(
+                Set.of(THIRD_PARTY_MODULE_INSTALLATION, BUILT_IN_MODULE_SELECTION),
+                spec -> spec.addThirdPartyModule(module));
+    }
+
+    /**
+     * Adds a third-party module.
+     *
+     * @param path module archive
+     * @return this container
+     * @throws FileNotFoundException if the module cannot be read
+     */
+    public IgnitionContainer withThirdPartyModule(String path) throws FileNotFoundException {
+        Objects.requireNonNull(path, "path");
+
+        return withThirdPartyModule(Path.of(path));
+    }
+
+    /**
+     * Replaces the configured third-party modules.
+     *
+     * <p>Module descriptors are read immediately. The existing selection is
+     * unchanged if any archive cannot be read.
+     *
+     * @param paths module archives
+     * @return this container
+     * @throws FileNotFoundException if a module archive does not exist
+     * @throws IllegalArgumentException if a module archive is invalid
      */
     public IgnitionContainer withThirdPartyModules(Path... paths) throws FileNotFoundException {
         Objects.requireNonNull(paths, "paths");
 
-        Set<Path> modules = new LinkedHashSet<>();
+        List<ThirdPartyModule> modules = new ArrayList<>(paths.length);
 
         for (Path path : paths) {
-            Objects.requireNonNull(path, "Module path cannot be null");
-
-            if (!Files.isRegularFile(path)) {
-                throw new FileNotFoundException("module '%s' does not exist".formatted(path));
-            }
-
-            modules.add(path);
+            modules.add(ThirdPartyModule.read(Objects.requireNonNull(path, "paths cannot contain null")));
         }
 
-        Set<Path> immutableModules = Collections.unmodifiableSet(modules);
-
-        return use(THIRD_PARTY_MODULE_INSTALLATION, spec -> spec.thirdPartyModules(immutableModules));
+        return use(
+                Set.of(THIRD_PARTY_MODULE_INSTALLATION, BUILT_IN_MODULE_SELECTION),
+                spec -> spec.thirdPartyModules(modules));
     }
 
     /**
-     * Adds third-party module files.
+     * Replaces the configured third-party modules.
      *
-     * @param paths module file paths
+     * @param paths module archive paths
      * @return this container
-     * @throws FileNotFoundException if a module does not exist
+     * @throws FileNotFoundException if a module cannot be read
      */
     public IgnitionContainer withThirdPartyModules(String... paths) throws FileNotFoundException {
         Objects.requireNonNull(paths, "paths");
@@ -565,11 +590,28 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     private IgnitionContainer use(IgnitionCapability capability, Consumer<IgnitionContainerSpec> configuration) {
         Objects.requireNonNull(capability, "capability");
 
+        return use(Set.of(capability), configuration);
+    }
+
+    /**
+     * Records capabilities and their requested configuration.
+     */
+    private IgnitionContainer use(Set<IgnitionCapability> capabilities, Consumer<IgnitionContainerSpec> configuration) {
+        Objects.requireNonNull(capabilities, "capabilities");
         Objects.requireNonNull(configuration, "configuration");
+
+        if (capabilities.isEmpty()) {
+            throw new IllegalArgumentException("At least one capability is required");
+        }
+
+        Set<IgnitionCapability> requestedCapabilities = Set.copyOf(capabilities);
 
         return configureSpecification(spec -> {
             configuration.accept(spec);
-            spec.request(capability);
+
+            for (IgnitionCapability capability : requestedCapabilities) {
+                spec.request(Objects.requireNonNull(capability, "capabilities cannot contain null"));
+            }
         });
     }
 
@@ -588,36 +630,36 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * Applies a requested capability using the compatibility policy.
      */
     private void applyRequestedCapability(IgnitionCapability capability, ContainerPlan.Builder plan) {
-        CapabilitySupport support = profile.supportFor(capability);
+        CapabilityCatalog.Resolution resolution = profile.capabilities().resolve(capability, ignitionVersion);
 
-        if (support.status() == CapabilityStatus.UNSUPPORTED) {
+        if (resolution instanceof CapabilityCatalog.UnsupportedResolution unsupported) {
             logger().warn(
                             "Ignition {} profile '{}' does not support capability {}: {}. The requested configuration will be ignored.",
                             ignitionVersion,
                             profile.name(),
                             capability,
-                            support.reason());
+                            unsupported.reason());
 
             return;
         }
 
-        if (!support.isAvailableIn(ignitionVersion)) {
-            logger().warn(
-                            "Capability {} is documented for Ignition {} or newer, but image {} was requested. The '{}' profile translation will still be applied.",
-                            capability,
-                            support.since(),
-                            ignitionVersion,
-                            profile.name());
+        if (resolution instanceof CapabilityCatalog.SupportedResolution supported) {
+            if (!supported.available()) {
+                logger().warn(
+                                "Capability {} is documented for Ignition {} or newer, but image {} was requested. The '{}' profile translation will still be applied.",
+                                capability,
+                                supported.introducedIn(),
+                                ignitionVersion,
+                                profile.name());
+            }
+
+            supported.applier().apply(ignitionVersion, specification, plan);
+
+            return;
         }
 
-        boolean applied = profile.apply(capability, ignitionVersion, specification, plan);
-
-        if (!applied) {
-            logger().warn(
-                            "Ignition profile '{}' declares capability {} but has no applier. The requested configuration will be ignored.",
-                            profile.name(),
-                            capability);
-        }
+        throw new IllegalStateException(
+                "Unknown capability resolution type: " + resolution.getClass().getName());
     }
 
     /**

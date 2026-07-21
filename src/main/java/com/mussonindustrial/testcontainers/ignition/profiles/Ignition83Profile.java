@@ -1,16 +1,30 @@
 package com.mussonindustrial.testcontainers.ignition.profiles;
 
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.*;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.*;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.BUILT_IN_MODULE_SELECTION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.DEBUG_MODE;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_EDITION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_NAME;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_RESTORE;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.INITIAL_ADMIN_CONFIGURATION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LEASED_LICENSE_ACTIVATION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LICENSE_ACCEPTANCE;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.MAX_MEMORY;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.PROCESS_IDENTITY;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.QUICK_START_CONTROL;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.SUPPLEMENTAL_ARGUMENTS;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.THIRD_PARTY_MODULE_INSTALLATION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.DEBUG;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.GATEWAY_HTTP;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.GATEWAY_HTTPS;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.GATEWAY_NETWORK;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.OPC_UA;
 import static com.mussonindustrial.testcontainers.ignition.compatibility.ModuleDefinition.module;
 
-import com.mussonindustrial.testcontainers.ignition.IgnitionCapability;
-import com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint;
 import com.mussonindustrial.testcontainers.ignition.IgnitionGatewayEdition;
 import com.mussonindustrial.testcontainers.ignition.IgnitionModule;
 import com.mussonindustrial.testcontainers.ignition.IgnitionVersion;
-import com.mussonindustrial.testcontainers.ignition.compatibility.CapabilityApplier;
-import com.mussonindustrial.testcontainers.ignition.compatibility.CapabilityMatrix;
+import com.mussonindustrial.testcontainers.ignition.ThirdPartyModule;
+import com.mussonindustrial.testcontainers.ignition.compatibility.CapabilityCatalog;
 import com.mussonindustrial.testcontainers.ignition.compatibility.EndpointCatalog;
 import com.mussonindustrial.testcontainers.ignition.compatibility.ModuleCatalog;
 import com.mussonindustrial.testcontainers.ignition.internal.ContainerFileCopy;
@@ -19,57 +33,48 @@ import com.mussonindustrial.testcontainers.ignition.internal.GatewayCredentials;
 import com.mussonindustrial.testcontainers.ignition.internal.GatewayRestore;
 import com.mussonindustrial.testcontainers.ignition.internal.IgnitionContainerSpec;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * Docker API profile for the Ignition 8.3 release line.
  *
- * <p>This profile declares the capabilities, modules, endpoints, and
- * container configuration behavior supported by Ignition 8.3 images.
+ * <p>This profile defines the capabilities, modules, endpoints, and container
+ * configuration supported by Ignition 8.3 images.
  */
 public final class Ignition83Profile implements IgnitionProfile {
 
-    /** Human-readable name for this profile. */
+    /** Human-readable profile name. */
     private static final String PROFILE_NAME = "Ignition 8.3";
 
-    /** Root installation directory in the Ignition 8.3 Docker image. */
+    /** Root installation directory. */
     private static final String INSTALLATION_DIRECTORY = "/usr/local/bin/ignition";
 
-    /** Directory where integrated third-party module files are installed. */
+    /** Third-party module directory. */
     private static final String MODULE_DIRECTORY = INSTALLATION_DIRECTORY + "/user-lib/modules";
 
-    /** Container path used for a staged Gateway backup. */
+    /** Staged Gateway backup path. */
     private static final String RESTORE_PATH = "/restore.gwbk";
 
-    /**
-     * Capabilities provided by the Ignition 8.3 Docker image and the first
-     * release in which each capability is available.
-     */
-    private static final CapabilityMatrix CAPABILITIES = CapabilityMatrix.profile(PROFILE_NAME)
-            .supported(LICENSE_ACCEPTANCE, "8.3.0")
-            .supported(LEASED_LICENSE_ACTIVATION, "8.3.0")
-            .supported(INITIAL_ADMIN_CONFIGURATION, "8.3.0")
-            .supported(GATEWAY_NAME, "8.3.0")
-            .supported(GATEWAY_EDITION, "8.3.0")
-            .supported(GATEWAY_RESTORE, "8.3.0")
-            .supported(DEBUG_MODE, "8.3.0")
-            .supported(MAX_MEMORY, "8.3.0")
-            .supported(SUPPLEMENTAL_ARGUMENTS, "8.3.0")
-            .supported(BUILT_IN_MODULE_SELECTION, "8.3.0")
-            .supported(THIRD_PARTY_MODULE_INSTALLATION, "8.3.0")
-            .supported(PROCESS_IDENTITY, "8.3.0")
-            .supported(QUICK_START_CONTROL, "8.3.0")
+    /** Supported capabilities and their versioned appliers. */
+    private static final CapabilityCatalog CAPABILITIES = CapabilityCatalog.profile(PROFILE_NAME)
+            .supported(LICENSE_ACCEPTANCE, "8.3.0", Ignition83Profile::applyLicenseAcceptance)
+            .supported(LEASED_LICENSE_ACTIVATION, "8.3.0", Ignition83Profile::applyLeasedLicenseActivation)
+            .supported(INITIAL_ADMIN_CONFIGURATION, "8.3.0", Ignition83Profile::applyInitialAdminConfiguration)
+            .supported(GATEWAY_NAME, "8.3.0", Ignition83Profile::applyGatewayName)
+            .supported(GATEWAY_EDITION, "8.3.0", Ignition83Profile::applyGatewayEdition)
+            .supported(GATEWAY_RESTORE, "8.3.0", Ignition83Profile::applyGatewayRestore)
+            .supported(DEBUG_MODE, "8.3.0", Ignition83Profile::applyDebugMode)
+            .supported(MAX_MEMORY, "8.3.0", Ignition83Profile::applyMaxMemory)
+            .supported(SUPPLEMENTAL_ARGUMENTS, "8.3.0", Ignition83Profile::applySupplementalArguments)
+            .supported(BUILT_IN_MODULE_SELECTION, "8.3.0", Ignition83Profile::applyBuiltInModuleSelection)
+            .supported(THIRD_PARTY_MODULE_INSTALLATION, "8.3.0", Ignition83Profile::applyThirdPartyModules)
+            .supported(PROCESS_IDENTITY, "8.3.0", Ignition83Profile::applyProcessIdentity)
+            .supported(QUICK_START_CONTROL, "8.3.0", Ignition83Profile::applyQuickStartControl)
             .complete();
 
-    /**
-     * Network endpoints available from the Ignition 8.3 Docker image.
-     *
-     * <p>Endpoint declarations do not imply that the port is always exposed.
-     * Modules and capabilities determine which optional endpoints are added
-     * to the final container plan.
-     */
+    /** Network endpoints defined by Ignition 8.3 images. */
     private static final EndpointCatalog ENDPOINTS = EndpointCatalog.profile(PROFILE_NAME)
             .endpoint(GATEWAY_HTTP, 8088, "Gateway HTTP")
             .endpoint(GATEWAY_HTTPS, 8043, "Gateway HTTPS")
@@ -78,13 +83,7 @@ public final class Ignition83Profile implements IgnitionProfile {
             .endpoint(DEBUG, 8000, "Gateway JVM debugger")
             .complete();
 
-    /**
-     * Built-in modules available from the Ignition 8.3 Docker image.
-     *
-     * <p>Each entry maps a stable logical module to its fully qualified
-     * Ignition 8.3 identifier, dependencies, and contributed endpoints.
-     * Modules omitted from this catalog are treated as unsupported.
-     */
+    /** Built-in modules available from Ignition 8.3 images. */
     private static final ModuleCatalog MODULES = ModuleCatalog.profile(PROFILE_NAME)
             .supported(IgnitionModule.ALARM_NOTIFICATION, "8.3.0", module("com.inductiveautomation.alarm-notification"))
             .supported(
@@ -117,7 +116,7 @@ public final class Ignition83Profile implements IgnitionProfile {
             .supported(
                     IgnitionModule.OPC_UA,
                     "8.3.0",
-                    module("com.inductiveautomation.opcua").exposes(IgnitionEndpoint.OPC_UA))
+                    module("com.inductiveautomation.opcua").exposes(OPC_UA))
             .supported(IgnitionModule.PERSPECTIVE, "8.3.0", module("com.inductiveautomation.perspective"))
             .supported(IgnitionModule.REPORTING, "8.3.0", module("com.inductiveautomation.reporting"))
             .supported(IgnitionModule.SFC, "8.3.0", module("com.inductiveautomation.sfc"))
@@ -139,59 +138,37 @@ public final class Ignition83Profile implements IgnitionProfile {
             .supported(IgnitionModule.MSSQL_JDBC_DRIVER, "8.3.0", module("com.inductiveautomation.jdbc.mssql"))
             .complete();
 
-    /**
-     * Functions that translate requested capabilities into the Ignition 8.3
-     * Docker image configuration.
-     */
-    private static final Map<IgnitionCapability, CapabilityApplier> APPLIERS = Map.ofEntries(
-            Map.entry(LICENSE_ACCEPTANCE, Ignition83Profile::applyLicenseAcceptance),
-            Map.entry(LEASED_LICENSE_ACTIVATION, Ignition83Profile::applyLeasedLicenseActivation),
-            Map.entry(INITIAL_ADMIN_CONFIGURATION, Ignition83Profile::applyInitialAdminConfiguration),
-            Map.entry(GATEWAY_NAME, Ignition83Profile::applyGatewayName),
-            Map.entry(GATEWAY_EDITION, Ignition83Profile::applyGatewayEdition),
-            Map.entry(GATEWAY_RESTORE, Ignition83Profile::applyGatewayRestore),
-            Map.entry(DEBUG_MODE, Ignition83Profile::applyDebugMode),
-            Map.entry(MAX_MEMORY, Ignition83Profile::applyMaxMemory),
-            Map.entry(SUPPLEMENTAL_ARGUMENTS, Ignition83Profile::applySupplementalArguments),
-            Map.entry(BUILT_IN_MODULE_SELECTION, Ignition83Profile::applyBuiltInModuleSelection),
-            Map.entry(THIRD_PARTY_MODULE_INSTALLATION, Ignition83Profile::applyThirdPartyModules),
-            Map.entry(PROCESS_IDENTITY, Ignition83Profile::applyProcessIdentity),
-            Map.entry(QUICK_START_CONTROL, Ignition83Profile::applyQuickStartControl));
-
+    /** Returns the profile name. */
     @Override
     public String name() {
         return PROFILE_NAME;
     }
 
+    /** Returns whether the version belongs to the 8.3 release line. */
     @Override
     public boolean matches(IgnitionVersion version) {
         return version.isReleaseLine(8, 3);
     }
 
+    /** Returns the capability catalog. */
     @Override
-    public CapabilityMatrix capabilities() {
+    public CapabilityCatalog capabilities() {
         return CAPABILITIES;
     }
 
+    /** Returns the built-in module catalog. */
     @Override
     public ModuleCatalog modules() {
         return MODULES;
     }
 
+    /** Returns the endpoint catalog. */
     @Override
     public EndpointCatalog endpoints() {
         return ENDPOINTS;
     }
 
-    @Override
-    public CapabilityApplier applier(IgnitionCapability capability) {
-        return APPLIERS.get(capability);
-    }
-
-    /**
-     * Applies settings and endpoints that are present independently of
-     * explicitly requested capabilities.
-     */
+    /** Applies profile-wide defaults. */
     @Override
     public void applyDefaults(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
@@ -200,10 +177,7 @@ public final class Ignition83Profile implements IgnitionProfile {
         plan.expose(ENDPOINTS.port(GATEWAY_HTTP), ENDPOINTS.port(GATEWAY_HTTPS), ENDPOINTS.port(GATEWAY_NETWORK));
     }
 
-    /**
-     * Adds the environment variable indicating that the Ignition EULA was
-     * accepted.
-     */
+    /** Applies license acceptance. */
     private static void applyLicenseAcceptance(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         if (specification.licenseAccepted()) {
@@ -211,10 +185,7 @@ public final class Ignition83Profile implements IgnitionProfile {
         }
     }
 
-    /**
-     * Adds the license key and activation token used for leased-license
-     * activation.
-     */
+    /** Applies leased-license activation. */
     private static void applyLeasedLicenseActivation(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         plan.environment("IGNITION_LICENSE_KEY", specification.licenseKey());
@@ -222,9 +193,7 @@ public final class Ignition83Profile implements IgnitionProfile {
         plan.environment("IGNITION_ACTIVATION_TOKEN", specification.activationToken());
     }
 
-    /**
-     * Adds the initial Gateway administrator username and password.
-     */
+    /** Applies initial administrator credentials. */
     private static void applyInitialAdminConfiguration(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         GatewayCredentials credentials = specification.credentials();
@@ -234,26 +203,19 @@ public final class Ignition83Profile implements IgnitionProfile {
         plan.environment("GATEWAY_ADMIN_PASSWORD", credentials.password());
     }
 
-    /**
-     * Adds the startup argument used to assign the Gateway name.
-     */
+    /** Applies the Gateway name. */
     private static void applyGatewayName(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         plan.arguments("-n", specification.gatewayName());
     }
 
-    /**
-     * Adds the environment variable used to select the Gateway edition.
-     */
+    /** Applies the Gateway edition. */
     private static void applyGatewayEdition(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         plan.environment("IGNITION_EDITION", editionIdentifier(specification.edition()));
     }
 
-    /**
-     * Copies a Gateway backup into the container and configures it for
-     * restoration during startup.
-     */
+    /** Applies Gateway backup restoration. */
     private static void applyGatewayRestore(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         GatewayRestore restore = specification.gatewayRestore();
@@ -265,9 +227,7 @@ public final class Ignition83Profile implements IgnitionProfile {
         plan.environment("GATEWAY_RESTORE_DISABLED", Boolean.toString(restore.restoreDisabled()));
     }
 
-    /**
-     * Enables Gateway JVM debugging and exposes the debugger endpoint.
-     */
+    /** Applies Gateway JVM debugging. */
     private static void applyDebugMode(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         if (!specification.debugMode()) {
@@ -278,18 +238,13 @@ public final class Ignition83Profile implements IgnitionProfile {
         plan.expose(ENDPOINTS.port(DEBUG));
     }
 
-    /**
-     * Adds the startup argument used to configure maximum Gateway memory.
-     */
+    /** Applies the maximum Gateway memory. */
     private static void applyMaxMemory(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         plan.arguments("-m", specification.maxMemory());
     }
 
-    /**
-     * Appends supplemental wrapper, JVM, or Gateway arguments after the
-     * startup argument delimiter.
-     */
+    /** Applies supplemental startup arguments. */
     private static void applySupplementalArguments(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         List<String> arguments = specification.additionalArguments();
@@ -302,35 +257,42 @@ public final class Ignition83Profile implements IgnitionProfile {
         plan.arguments(arguments);
     }
 
-    /**
-     * Resolves the requested logical modules into Ignition 8.3 identifiers
-     * and exposes any endpoints contributed by those modules.
-     */
+    /** Applies built-in and third-party module selection. */
     private static void applyBuiltInModuleSelection(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         ModuleCatalog.Resolution resolution = MODULES.resolve(version, specification.modules());
 
         resolution.warnings().forEach(plan::warning);
 
-        plan.environment("GATEWAY_MODULES_ENABLED", String.join(",", resolution.identifiers()));
+        LinkedHashSet<String> identifiers = new LinkedHashSet<>(resolution.identifiers());
+
+        for (ThirdPartyModule module : specification.thirdPartyModules()) {
+            identifiers.addAll(module.gatewayDependencies());
+            identifiers.add(module.identifier());
+        }
+
+        plan.environment("GATEWAY_MODULES_ENABLED", String.join(",", identifiers));
 
         resolution.endpoints().stream().mapToInt(ENDPOINTS::port).forEach(plan::expose);
     }
 
-    /**
-     * Copies requested third-party module files into the Gateway module
-     * directory.
-     */
+    /** Installs third-party modules and accepts their certificates. */
     private static void applyThirdPartyModules(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
-        for (Path module : specification.thirdPartyModules()) {
-            plan.copy(module, moduleDestination(module), ContainerFileCopy.DEFAULT_MODE);
+        LinkedHashSet<String> acceptedCertificates = new LinkedHashSet<>();
+
+        for (ThirdPartyModule module : specification.thirdPartyModules()) {
+            plan.copy(module.archive(), moduleDestination(module.archive()), ContainerFileCopy.DEFAULT_MODE);
+            acceptedCertificates.add(module.identifier());
+        }
+
+        if (!acceptedCertificates.isEmpty()) {
+            plan.environment("ACCEPT_MODULE_CERTS", String.join(",", acceptedCertificates));
+            plan.environment("ACCEPT_MODULE_LICENSES", String.join(",", acceptedCertificates));
         }
     }
 
-    /**
-     * Configures the user and group IDs used by the Ignition process.
-     */
+    /** Applies the Ignition process identity. */
     private static void applyProcessIdentity(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         plan.environment("IGNITION_UID", specification.uid().toString());
@@ -338,9 +300,7 @@ public final class Ignition83Profile implements IgnitionProfile {
         plan.environment("IGNITION_GID", specification.gid().toString());
     }
 
-    /**
-     * Configures whether the Gateway Quick Start experience is enabled.
-     */
+    /** Applies Gateway Quick Start control. */
     private static void applyQuickStartControl(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
         boolean disableQuickStart = !specification.quickStartEnabled();
@@ -348,17 +308,12 @@ public final class Ignition83Profile implements IgnitionProfile {
         plan.environment("DISABLE_QUICKSTART", Boolean.toString(disableQuickStart));
     }
 
-    /**
-     * Converts a Gateway edition into the lowercase identifier expected by
-     * the Ignition Docker image.
-     */
+    /** Returns the Docker edition identifier. */
     private static String editionIdentifier(IgnitionGatewayEdition edition) {
         return edition.name().toLowerCase(Locale.ROOT);
     }
 
-    /**
-     * Returns the target path for a third-party module inside the container.
-     */
+    /** Returns the container destination for a module. */
     private static String moduleDestination(Path module) {
         Path fileName = module.getFileName();
 
