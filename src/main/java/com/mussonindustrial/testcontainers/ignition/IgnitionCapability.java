@@ -26,6 +26,9 @@ public enum IgnitionCapability {
     /** Enables Gateway JVM debugging. */
     DEBUG_MODE,
 
+    /** Enables unsigned third-party modules. */
+    UNSIGNED_MODULES,
+
     /** Configures the maximum Gateway memory. */
     MAX_MEMORY,
 

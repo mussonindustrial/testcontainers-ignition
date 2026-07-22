@@ -50,6 +50,9 @@ public final class IgnitionContainerSpec {
     /** Whether Gateway JVM debugging is enabled. */
     private boolean debugMode;
 
+    /** Whether unsigned modules are allowed. */
+    private boolean allowUnsignedModules;
+
     /** Requested maximum Gateway memory. */
     private String maxMemory;
 
@@ -248,6 +251,24 @@ public final class IgnitionContainerSpec {
      */
     public boolean debugMode() {
         return debugMode;
+    }
+
+    /**
+     * Sets whether unsigned modules are allowed.
+     *
+     * @param allowUnsignedModules unsigned modules state
+     */
+    public void allowUnsignedModules(boolean allowUnsignedModules) {
+        this.allowUnsignedModules = allowUnsignedModules;
+    }
+
+    /**
+     * Returns whether unsigned modules are allowed.
+     *
+     * @return unsigned modules state
+     */
+    public boolean allowUnsignedModules() {
+        return allowUnsignedModules;
     }
 
     /**
@@ -502,7 +523,7 @@ public final class IgnitionContainerSpec {
             case GATEWAY_EDITION ->
                 requireConfigured(edition != null, capability, "A Gateway edition was not configured");
 
-            case DEBUG_MODE -> {
+            case DEBUG_MODE, UNSIGNED_MODULES -> {
                 // Boolean configuration is always valid.
             }
 

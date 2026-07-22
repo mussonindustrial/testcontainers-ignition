@@ -7,9 +7,7 @@
 
 [Testcontainers] is a Java library that supports JUnit tests, providing lightweight, throwaway instances of common databases, Selenium web browsers, or anything else that can run in a Docker container.
 
-This project is a Testcontainers implementation for [Ignition by Inductive Automation](https://inductiveautomation.com/).
-
-
+This project provides a Testcontainers implementation for [Ignition by Inductive Automation](https://inductiveautomation.com/).
 
 ## Include
 
@@ -32,53 +30,77 @@ dependencies {
 ```
 
 ## Usage
-```java
-void createIgnitionGateway() throws FileNotFoundException {
-    try (IgnitionContainer ignition = new IgnitionContainer()
-            .withCredentials("myUsername", "myPassword")
-            .withEdition(GatewayEdition.STANDARD)
-            .withModules(GatewayModule.PERSPECTIVE)
-            .withGatewayBackup("./path/to/backup.gwbk")
-            .acceptLicense()) {
-        ignition.start();
-        String url = ignition.getGatewayUrl();
-        // ... do something with your gateway!
-    }
-}
-```
+Create an `IgnitionContainer` using a versioned Ignition Docker image. 
+Untagged images and the `latest` tag are rejected. 
+Ignition 8.1 and 8.3 images are currently supported.
 
-The no-argument constructor uses Ignition 8.3.8. A fresh gateway enables OPC UA
-when no explicit module selection is supplied so automated commissioning can
-finish. To run a custom unsigned module, enable developer mode and add its module
-archive:
+### Start a Gateway
 
 ```java
-void createDeveloperGateway() throws FileNotFoundException {
-    try (IgnitionContainer ignition = new IgnitionContainer()
+import com.mussonindustrial.testcontainers.ignition.IgnitionContainer;
+import com.mussonindustrial.testcontainers.ignition.IgnitionGatewayEdition;
+import com.mussonindustrial.testcontainers.ignition.IgnitionModule;
+import java.nio.file.Path;
+
+void createIgnitionGateway() {
+    try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.3.8")
             .withCredentials("admin", "password")
-            .withDeveloperMode()
-            .withThirdPartyModule("./path/to/unsigned-module.modl")
+            .withEdition(IgnitionGatewayEdition.STANDARD)
+            .withModules(IgnitionModule.PERSPECTIVE)
+            .withGatewayBackup("path/to/backup.gwbk")
             .acceptLicense()) {
+
         ignition.start();
-        // The gateway and unsigned module are running when start() returns.
+
+        String gatewayUrl = ignition.getGatewayUrl();
+
+        // Use the Gateway in your test.
     }
 }
 ```
 
-The module identifier and gateway-scoped dependencies are read from `module.xml`
-and included in the Ignition 8.3 automated commissioning configuration. String
-and `Path` overloads are available for singular and plural third-party module APIs.
+The container waits for the Gateway to finish starting before `start()` returns.
+
+### Install a Third-Party Module
+
+```java
+import com.mussonindustrial.testcontainers.ignition.IgnitionContainer;
+import java.io.FileNotFoundException;
+import java.nio.file.Path;
+
+void createGatewayWithThirdPartyModule() throws FileNotFoundException {
+    try (IgnitionContainer ignition = new IgnitionContainer("inductiveautomation/ignition:8.3.8")
+            .withCredentials("admin", "password")
+            .withThirdPartyModule("path/to/module.modl")
+            .withAllowUnsignedModules()
+            .acceptLicense()) {
+
+        ignition.start();
+
+        // The Gateway is running with the module installed.
+    }
+}
+```
+
+Third-party module archives are inspected when they are added to the container.
+The module identifier and Gateway-scoped dependencies are read from the archive’s `module.xml` descriptor and included in the Gateway configuration automatically.
+
+Built-in modules remain explicitly controlled through `withModules(...)`.
+
+For Ignition 8.3 images, third-party module identifiers are also supplied to the Docker image’s automatic module-certificate acceptance mechanism.
+Ignition 8.1 images do not provide the equivalent Docker configuration capability.
+
 
 ## Sponsors
 Maintenance of this project is made possible by all our [contributors] and [sponsors].
-If you'd like to sponsor this project and have your avatar or company logo appear below [click here](https://github.com/sponsors/mussonindustrial). 💖
+If you'd like to sponsor this project and have your avatar or company logo appear below [click here](https://github.com/sponsors/mussonindustrial).
 
 ## Links
 
--   [License (MIT)](LICENSE)
--   [Musson Industrial](https://mussonindustrial.com/)
--   [Inductive Automation](https://inductiveautomation.com/)
--   [Ignition 8.3 Docker Image](https://www.docs.inductiveautomation.com/docs/8.3/platform/docker-image)
+- [License (MIT)](LICENSE)
+- [Musson Industrial](https://mussonindustrial.com/)
+- [Inductive Automation](https://inductiveautomation.com/)
+- [Ignition 8.3 Docker Image](https://www.docs.inductiveautomation.com/docs/8.3/platform/docker-image)
 
 [testcontainers-ignition]: https://github.com/mussonindustrial/testcontainers-ignition/
 [testcontainers]: https://java.testcontainers.org/

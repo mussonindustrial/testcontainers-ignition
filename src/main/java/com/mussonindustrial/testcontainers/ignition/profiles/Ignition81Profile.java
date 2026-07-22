@@ -1,18 +1,6 @@
 package com.mussonindustrial.testcontainers.ignition.profiles;
 
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.BUILT_IN_MODULE_SELECTION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.DEBUG_MODE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_EDITION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_NAME;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_RESTORE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.INITIAL_ADMIN_CONFIGURATION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LEASED_LICENSE_ACTIVATION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LICENSE_ACCEPTANCE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.MAX_MEMORY;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.PROCESS_IDENTITY;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.QUICK_START_CONTROL;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.SUPPLEMENTAL_ARGUMENTS;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.THIRD_PARTY_MODULE_INSTALLATION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.*;
 import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.DEBUG;
 import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.GATEWAY_HTTP;
 import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.GATEWAY_HTTPS;
@@ -68,6 +56,7 @@ public final class Ignition81Profile implements IgnitionProfile {
             .supported(GATEWAY_EDITION, "8.1.8", Ignition81Profile::applyGatewayEdition)
             .supported(LEASED_LICENSE_ACTIVATION, "8.1.8", Ignition81Profile::applyLeasedLicenseActivation)
             .supported(SUPPLEMENTAL_ARGUMENTS, "8.1.8", Ignition81Profile::applySupplementalArguments)
+            .supported(UNSIGNED_MODULES, "8.1.8", Ignition81Profile::applyAllowUnsignedModules)
             .supported(BUILT_IN_MODULE_SELECTION, "8.1.17", Ignition81Profile::applyBuiltInModuleSelection)
             .supported(PROCESS_IDENTITY, "8.1.17", Ignition81Profile::applyProcessIdentity)
             .supported(QUICK_START_CONTROL, "8.1.23", Ignition81Profile::applyQuickStartControl)
@@ -212,6 +201,17 @@ public final class Ignition81Profile implements IgnitionProfile {
 
         plan.argument("-d");
         plan.expose(ENDPOINTS.port(DEBUG));
+    }
+
+    /** Applies unsigned third-party module support. */
+    private static void applyAllowUnsignedModules(
+            IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
+        if (!specification.allowUnsignedModules()) {
+            return;
+        }
+
+        plan.argument("--");
+        plan.argument("-Dignition.allowunsignedmodules=true");
     }
 
     /** Applies the maximum Gateway memory. */

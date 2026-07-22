@@ -1,18 +1,6 @@
 package com.mussonindustrial.testcontainers.ignition;
 
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.BUILT_IN_MODULE_SELECTION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.DEBUG_MODE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_EDITION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_NAME;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_RESTORE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.INITIAL_ADMIN_CONFIGURATION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LEASED_LICENSE_ACTIVATION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LICENSE_ACCEPTANCE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.MAX_MEMORY;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.PROCESS_IDENTITY;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.QUICK_START_CONTROL;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.SUPPLEMENTAL_ARGUMENTS;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.THIRD_PARTY_MODULE_INSTALLATION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.*;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.mussonindustrial.testcontainers.ignition.compatibility.*;
@@ -121,6 +109,15 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
+     * Enables Gateway JVM debugging.
+     *
+     * @return this container
+     */
+    public IgnitionContainer withDebugMode() {
+        return use(DEBUG_MODE, spec -> spec.debugMode(true));
+    }
+
+    /**
      * Enables or disables Gateway JVM debugging.
      *
      * @param debugMode debug state
@@ -128,6 +125,25 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      */
     public IgnitionContainer withDebugMode(boolean debugMode) {
         return use(DEBUG_MODE, spec -> spec.debugMode(debugMode));
+    }
+
+    /**
+     * Enables unsigned third-party modules.
+     *
+     * @return this container
+     */
+    public IgnitionContainer withAllowUnsignedModules() {
+        return use(UNSIGNED_MODULES, spec -> spec.allowUnsignedModules(true));
+    }
+
+    /**
+     * Enables or disables unsigned third-party modules.
+     *
+     * @param allowUnsignedModules unsigned third-party modules state
+     * @return this container
+     */
+    public IgnitionContainer withAllowUnsignedModules(boolean allowUnsignedModules) {
+        return use(UNSIGNED_MODULES, spec -> spec.allowUnsignedModules(allowUnsignedModules));
     }
 
     /**

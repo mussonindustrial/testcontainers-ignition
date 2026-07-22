@@ -1,18 +1,6 @@
 package com.mussonindustrial.testcontainers.ignition.profiles;
 
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.BUILT_IN_MODULE_SELECTION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.DEBUG_MODE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_EDITION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_NAME;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.GATEWAY_RESTORE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.INITIAL_ADMIN_CONFIGURATION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LEASED_LICENSE_ACTIVATION;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.LICENSE_ACCEPTANCE;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.MAX_MEMORY;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.PROCESS_IDENTITY;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.QUICK_START_CONTROL;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.SUPPLEMENTAL_ARGUMENTS;
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.THIRD_PARTY_MODULE_INSTALLATION;
+import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.*;
 import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.DEBUG;
 import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.GATEWAY_HTTP;
 import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.GATEWAY_HTTPS;
@@ -66,6 +54,7 @@ public final class Ignition83Profile implements IgnitionProfile {
             .supported(GATEWAY_EDITION, "8.3.0", Ignition83Profile::applyGatewayEdition)
             .supported(GATEWAY_RESTORE, "8.3.0", Ignition83Profile::applyGatewayRestore)
             .supported(DEBUG_MODE, "8.3.0", Ignition83Profile::applyDebugMode)
+            .supported(UNSIGNED_MODULES, "8.3.0", Ignition83Profile::applyAllowUnsignedModules)
             .supported(MAX_MEMORY, "8.3.0", Ignition83Profile::applyMaxMemory)
             .supported(SUPPLEMENTAL_ARGUMENTS, "8.3.0", Ignition83Profile::applySupplementalArguments)
             .supported(BUILT_IN_MODULE_SELECTION, "8.3.0", Ignition83Profile::applyBuiltInModuleSelection)
@@ -236,6 +225,17 @@ public final class Ignition83Profile implements IgnitionProfile {
 
         plan.argument("-d");
         plan.expose(ENDPOINTS.port(DEBUG));
+    }
+
+    /** Applies unsigned third-party module support. */
+    private static void applyAllowUnsignedModules(
+            IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
+        if (!specification.allowUnsignedModules()) {
+            return;
+        }
+
+        plan.argument("--");
+        plan.argument("-Dignition.allowunsignedmodules=true");
     }
 
     /** Applies the maximum Gateway memory. */
