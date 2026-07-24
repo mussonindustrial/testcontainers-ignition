@@ -36,11 +36,11 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     /** Official Ignition Docker image name. */
     public static final DockerImageName DEFAULT_IMAGE_NAME = DockerImageName.parse("inductiveautomation/ignition");
 
-    /** Parsed Ignition image version. */
-    private final IgnitionVersion ignitionVersion;
-
     /** Compatibility profile selected for the image. */
     private final IgnitionProfile profile;
+
+    /** Parsed Ignition image version. */
+    private final IgnitionVersion ignitionVersion;
 
     /** Normalized user configuration. */
     private final IgnitionContainerSpec specification = new IgnitionContainerSpec();
@@ -61,13 +61,27 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * @param dockerImageName concrete Ignition image name
      */
     public IgnitionContainer(DockerImageName dockerImageName) {
+        this(
+                dockerImageName,
+                IgnitionProfiles.resolve(IgnitionVersion.from(dockerImageName)),
+                IgnitionVersion.from(dockerImageName));
+    }
+
+    /**
+     * Creates an Ignition container.
+     *
+     * @param dockerImageName concrete Ignition image name
+     * @param profile compatibility profile
+     * @param ignitionVersion Ignition version
+     */
+    public IgnitionContainer(
+            DockerImageName dockerImageName, IgnitionProfile profile, IgnitionVersion ignitionVersion) {
         super(dockerImageName);
 
         dockerImageName.assertCompatibleWith(DEFAULT_IMAGE_NAME);
 
-        ignitionVersion = IgnitionVersion.from(dockerImageName);
-
-        profile = IgnitionProfiles.resolve(ignitionVersion);
+        this.ignitionVersion = Objects.requireNonNull(ignitionVersion, "profile");
+        this.profile = Objects.requireNonNull(profile, "profile");
 
         setWaitStrategy(profile.createWaitStrategy(ignitionVersion));
     }
@@ -240,13 +254,17 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
-     * Sets the Ignition process group ID.
+     * Sets the Ignition process group ID and user ID.
      *
      * @param gid process group ID
+     * @param uid process user ID
      * @return this container
      */
-    public IgnitionContainer withGid(int gid) {
-        return use(PROCESS_IDENTITY, spec -> spec.gid(gid));
+    public IgnitionContainer withProcessIdentity(int gid, int uid) {
+        return use(PROCESS_IDENTITY, spec -> {
+            spec.gid(gid);
+            spec.uid(uid);
+        });
     }
 
     /**
@@ -577,15 +595,13 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
 
         specification.validate();
 
-        ContainerPlan.Builder plan = ContainerPlan.builder();
+        ContainerPlan.Builder planBuilder = ContainerPlan.builder();
 
-        profile.applyDefaults(ignitionVersion, specification, plan);
+        profile.applyDefaults(ignitionVersion, specification, planBuilder);
+        applyRequestedCapabilities(planBuilder);
 
-        for (IgnitionCapability capability : specification.requestedCapabilities()) {
-            applyRequestedCapability(capability, plan);
-        }
-
-        applyPlan(plan.build());
+        ContainerPlan plan = planBuilder.build();
+        applyPlan(plan);
     }
 
     /** Logs that the Ignition container is starting. */
@@ -643,39 +659,138 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
     }
 
     /**
-     * Applies a requested capability using the compatibility policy.
+     * Applies all capabilities requested by the container specification.
+     *
+     * <p>Capabilities reached through delegation are applied at most once, even
+     * when they are also requested directly. Circular capability delegation is
+     * rejected.
+     *
+     * @param plan container plan being configured
      */
-    private void applyRequestedCapability(IgnitionCapability capability, ContainerPlan.Builder plan) {
-        CapabilityCatalog.Resolution resolution = profile.capabilities().resolve(capability, ignitionVersion);
+    private void applyRequestedCapabilities(ContainerPlan.Builder plan) {
+        Set<IgnitionCapability> applied = EnumSet.noneOf(IgnitionCapability.class);
 
-        if (resolution instanceof CapabilityCatalog.UnsupportedResolution unsupported) {
-            logger().warn(
-                            "Ignition {} profile '{}' does not support capability {}: {}. The requested configuration will be ignored.",
-                            ignitionVersion,
-                            profile.name(),
-                            capability,
-                            unsupported.reason());
+        Set<IgnitionCapability> resolving = EnumSet.noneOf(IgnitionCapability.class);
 
+        for (IgnitionCapability capability : specification.requestedCapabilities()) {
+            applyRequestedCapability(capability, plan, applied, resolving);
+        }
+    }
+
+    /**
+     * Applies one capability using the active profile's compatibility policy.
+     *
+     * <p>A supported capability may be implemented directly by an applier or
+     * delegated to another capability. Unsupported capabilities are ignored
+     * after a warning is logged.
+     *
+     * @param capability capability to apply
+     * @param plan container plan being configured
+     * @param applied capabilities already applied to the plan
+     * @param resolving capabilities in the current delegation chain
+     * @throws IllegalStateException if capability delegation contains a cycle
+     */
+    private void applyRequestedCapability(
+            IgnitionCapability capability,
+            ContainerPlan.Builder plan,
+            Set<IgnitionCapability> applied,
+            Set<IgnitionCapability> resolving) {
+        if (applied.contains(capability)) {
             return;
         }
 
-        if (resolution instanceof CapabilityCatalog.SupportedResolution supported) {
-            if (!supported.available()) {
+        if (!resolving.add(capability)) {
+            throw new IllegalStateException("Circular capability implementation detected while applying %s: %s"
+                    .formatted(capability, resolving));
+        }
+
+        try {
+            CapabilityCatalog.Resolution resolution = profile.capabilities().resolve(capability, ignitionVersion);
+
+            if (resolution instanceof CapabilityCatalog.UnsupportedResolution unsupported) {
                 logger().warn(
-                                "Capability {} is documented for Ignition {} or newer, but image {} was requested. The '{}' profile translation will still be applied.",
-                                capability,
-                                supported.introducedIn(),
+                                "Ignition {} profile '{}' does not support capability {}: {}. "
+                                        + "The requested configuration will be ignored.",
                                 ignitionVersion,
-                                profile.name());
+                                profile.name(),
+                                capability,
+                                unsupported.reason());
+
+                applied.add(capability);
+                return;
             }
 
-            supported.applier().apply(ignitionVersion, specification, plan);
+            if (resolution instanceof CapabilityCatalog.SupportedResolution supported) {
+                warnIfUnavailable(capability, supported);
+
+                applyImplementation(supported.implementation(), plan, applied, resolving);
+
+                applied.add(capability);
+                return;
+            }
+
+            throw new IllegalStateException("Unknown capability resolution type: "
+                    + resolution.getClass().getName());
+        } finally {
+            resolving.remove(capability);
+        }
+    }
+
+    /**
+     * Applies a resolved capability implementation.
+     *
+     * <p>Direct implementations invoke their capability applier. Delegated
+     * implementations recursively apply the referenced capability using the same
+     * deduplication and cycle-detection state.
+     *
+     * @param implementation resolved implementation
+     * @param plan container plan being configured
+     * @param applied capabilities already applied to the plan
+     * @param resolving capabilities in the current delegation chain
+     */
+    private void applyImplementation(
+            CapabilityCatalog.Implementation implementation,
+            ContainerPlan.Builder plan,
+            Set<IgnitionCapability> applied,
+            Set<IgnitionCapability> resolving) {
+        if (implementation instanceof CapabilityCatalog.DirectImplementation direct) {
+            direct.applier().apply(ignitionVersion, specification, plan);
 
             return;
         }
 
-        throw new IllegalStateException(
-                "Unknown capability resolution type: " + resolution.getClass().getName());
+        if (implementation instanceof CapabilityCatalog.DelegatedImplementation delegated) {
+            applyRequestedCapability(delegated.capability(), plan, applied, resolving);
+
+            return;
+        }
+
+        throw new IllegalStateException("Unknown capability implementation type: "
+                + implementation.getClass().getName());
+    }
+
+    /**
+     * Logs a warning when a capability predates its documented introduction.
+     *
+     * <p>The earliest known profile implementation is still applied so older
+     * image versions can be used on a best-effort basis.
+     *
+     * @param capability capability being applied
+     * @param resolution resolved supported capability
+     */
+    private void warnIfUnavailable(IgnitionCapability capability, CapabilityCatalog.SupportedResolution resolution) {
+        if (resolution.available()) {
+            return;
+        }
+
+        logger().warn(
+                        "Capability {} is documented for Ignition {} or newer, "
+                                + "but image {} was requested. The '{}' profile "
+                                + "translation will still be applied.",
+                        capability,
+                        resolution.introducedIn(),
+                        ignitionVersion,
+                        profile.name());
     }
 
     /**
@@ -714,7 +829,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
      * Applies the profile-generated container command.
      */
     private void applyCommand(ContainerPlan plan) {
-        if (plan.command().isEmpty()) {
+        if (plan.arguments().isEmpty()) {
             return;
         }
 
@@ -726,7 +841,7 @@ public class IgnitionContainer extends GenericContainer<IgnitionContainer> {
             return;
         }
 
-        setCommand(plan.command().toArray(String[]::new));
+        setCommand(plan.arguments().toArray(String[]::new));
     }
 
     /**

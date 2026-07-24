@@ -22,7 +22,7 @@ public final class ContainerPlan {
     private final Map<String, String> environment;
 
     /** Command arguments passed to the container. */
-    private final List<String> command;
+    private final List<String> arguments;
 
     /** Container ports exposed by the plan. */
     private final Set<Integer> exposedPorts;
@@ -42,7 +42,7 @@ public final class ContainerPlan {
     private ContainerPlan(Builder builder) {
         environment = Collections.unmodifiableMap(new LinkedHashMap<>(builder.environment));
 
-        command = List.copyOf(builder.command);
+        arguments = List.copyOf(builder.arguments);
 
         exposedPorts = Collections.unmodifiableSet(new LinkedHashSet<>(builder.exposedPorts));
 
@@ -72,10 +72,10 @@ public final class ContainerPlan {
     /**
      * Returns the container command arguments.
      *
-     * @return immutable command list
+     * @return immutable argument list
      */
-    public List<String> command() {
-        return command;
+    public List<String> arguments() {
+        return arguments;
     }
 
     /**
@@ -121,7 +121,7 @@ public final class ContainerPlan {
      */
     public boolean isEmpty() {
         return environment.isEmpty()
-                && command.isEmpty()
+                && arguments.isEmpty()
                 && exposedPorts.isEmpty()
                 && fileCopies.isEmpty()
                 && generatedFiles.isEmpty()
@@ -138,7 +138,7 @@ public final class ContainerPlan {
         private final Map<String, String> environment = new LinkedHashMap<>();
 
         /** Command arguments collected by the builder. */
-        private final List<String> command = new ArrayList<>();
+        private final List<String> arguments = new ArrayList<>();
 
         /** Exposed ports collected by the builder. */
         private final Set<Integer> exposedPorts = new LinkedHashSet<>();
@@ -191,7 +191,7 @@ public final class ContainerPlan {
          * @return this builder
          */
         public Builder argument(String value) {
-            command.add(requireCommandArgument(value));
+            arguments.add(requireCommandArgument(value));
 
             return this;
         }
@@ -369,7 +369,7 @@ public final class ContainerPlan {
             Objects.requireNonNull(other, "other");
 
             environment(other.environment());
-            arguments(other.command());
+            arguments(other.arguments());
 
             other.exposedPorts().forEach(this::expose);
 

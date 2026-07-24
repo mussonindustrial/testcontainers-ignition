@@ -47,8 +47,10 @@ class IgnitionCapabilityTest {
 
                 if (entry instanceof CapabilityCatalog.SupportedEntry supported) {
                     assertAll(
-                            () -> assertFalse(supported.appliers().isEmpty(), () -> "%s supports %s but has no appliers"
-                                    .formatted(profile.name(), capability)),
+                            () -> assertFalse(
+                                    supported.implementations().isEmpty(),
+                                    () -> "%s supports %s but has no implementations"
+                                            .formatted(profile.name(), capability)),
                             () -> assertInstanceOf(
                                     CapabilityCatalog.SupportedResolution.class,
                                     resolution,
@@ -208,8 +210,7 @@ class IgnitionCapabilityTest {
                         IgnitionCapability.PROCESS_IDENTITY,
                         IgnitionVersion.parse("8.1.17"),
                         configuration(container -> {
-                            container.withUid(1000);
-                            container.withGid(1000);
+                            container.withProcessIdentity(1000, 1000);
                         })),
                 Arguments.of(
                         "Quick Start control",
