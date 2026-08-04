@@ -151,20 +151,25 @@ public final class Ignition83Profile extends BaseIgnition8Profile {
      */
     protected void applyBuiltInModuleSelection(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
-        ModuleCatalog.Resolution resolution = MODULES.resolve(version, specification.modules());
+        LinkedHashSet<IgnitionModule> builtInModules = new LinkedHashSet<>(specification.modules());
+        specification.thirdPartyModules().forEach(module -> {
+            module.gatewayDependencies().forEach(dependency -> {
+                modules().find(dependency).ifPresent(builtInModules::add);
+            });
+        });
 
+        ModuleCatalog.Resolution resolution = modules().resolve(version, builtInModules);
         resolution.warnings().forEach(plan::warning);
 
         LinkedHashSet<String> identifiers = new LinkedHashSet<>(resolution.identifiers());
 
-        for (ThirdPartyModule module : specification.thirdPartyModules()) {
-            identifiers.addAll(module.gatewayDependencies());
+        specification.thirdPartyModules().forEach(module -> {
             identifiers.add(module.identifier());
-        }
+        });
 
         plan.environment("GATEWAY_MODULES_ENABLED", String.join(",", identifiers));
 
-        resolution.endpoints().stream().mapToInt(ENDPOINTS::port).forEach(plan::expose);
+        resolution.endpoints().stream().mapToInt(endpoints()::port).forEach(plan::expose);
     }
 
     /**

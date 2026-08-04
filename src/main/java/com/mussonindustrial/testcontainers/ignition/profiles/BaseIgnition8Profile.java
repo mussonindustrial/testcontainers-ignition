@@ -1,18 +1,16 @@
 package com.mussonindustrial.testcontainers.ignition.profiles;
 
-import static com.mussonindustrial.testcontainers.ignition.IgnitionCapability.*;
 import static com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint.*;
-import static com.mussonindustrial.testcontainers.ignition.compatibility.ModuleDefinition.module;
 
 import com.mussonindustrial.testcontainers.ignition.IgnitionGatewayEdition;
+import com.mussonindustrial.testcontainers.ignition.IgnitionModule;
 import com.mussonindustrial.testcontainers.ignition.IgnitionVersion;
 import com.mussonindustrial.testcontainers.ignition.ThirdPartyModule;
 import com.mussonindustrial.testcontainers.ignition.compatibility.EndpointCatalog;
 import com.mussonindustrial.testcontainers.ignition.compatibility.ModuleCatalog;
 import com.mussonindustrial.testcontainers.ignition.internal.*;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 /**
  * Base Docker API profile for the Ignition 8 release line.
@@ -187,7 +185,14 @@ public abstract class BaseIgnition8Profile implements IgnitionProfile {
      */
     protected void applyBuiltInModuleSelection(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
-        ModuleCatalog.Resolution resolution = modules().resolve(version, specification.modules());
+        LinkedHashSet<IgnitionModule> builtInModules = new LinkedHashSet<>(specification.modules());
+        specification.thirdPartyModules().forEach(module -> {
+            module.gatewayDependencies().forEach(dependency -> {
+                modules().find(dependency).ifPresent(builtInModules::add);
+            });
+        });
+
+        ModuleCatalog.Resolution resolution = modules().resolve(version, builtInModules);
         resolution.warnings().forEach(plan::warning);
 
         plan.environment("GATEWAY_MODULES_ENABLED", String.join(",", resolution.identifiers()));

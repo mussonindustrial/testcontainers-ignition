@@ -3,15 +3,7 @@ package com.mussonindustrial.testcontainers.ignition.compatibility;
 import com.mussonindustrial.testcontainers.ignition.IgnitionEndpoint;
 import com.mussonindustrial.testcontainers.ignition.IgnitionModule;
 import com.mussonindustrial.testcontainers.ignition.IgnitionVersion;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.EnumSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Declarative catalog of the built-in modules available in an Ignition
@@ -45,7 +37,7 @@ public final class ModuleCatalog {
      *
      * @param status whether the module can be selected
      * @param since first known version supporting the module
-     * @param identifiers image-specific module identifiers
+     * @param identifier image-specific module identifier
      * @param dependencies other logical modules required by this module
      * @param endpoints network endpoints contributed by this module
      * @param description compatibility notes or the unsupported reason
@@ -53,7 +45,7 @@ public final class ModuleCatalog {
     public record Entry(
             Status status,
             IgnitionVersion since,
-            List<String> identifiers,
+            String identifier,
             Set<IgnitionModule> dependencies,
             Set<IgnitionEndpoint> endpoints,
             String description) {
@@ -63,7 +55,7 @@ public final class ModuleCatalog {
          *
          * @param status whether the module can be selected
          * @param since first known version supporting the module
-         * @param identifiers image-specific module identifiers
+         * @param identifier image-specific module identifier
          * @param dependencies other logical modules required by this module
          * @param endpoints network endpoints contributed by this module
          * @param description compatibility notes or the unsupported reason
@@ -71,7 +63,7 @@ public final class ModuleCatalog {
         public Entry {
             Objects.requireNonNull(status, "status");
 
-            identifiers = List.copyOf(Objects.requireNonNull(identifiers, "identifiers"));
+            identifier = Objects.requireNonNull(identifier, "identifier");
 
             dependencies = Set.copyOf(Objects.requireNonNull(dependencies, "dependencies"));
 
@@ -82,24 +74,20 @@ public final class ModuleCatalog {
             if (status == Status.SUPPORTED) {
                 Objects.requireNonNull(since, "since");
 
-                if (identifiers.isEmpty()) {
-                    throw new IllegalArgumentException("A supported module must have at least " + "one identifier");
+                if (identifier.isEmpty()) {
+                    throw new IllegalArgumentException("A supported module must have an identifier");
                 }
             } else {
                 if (since != null) {
-                    throw new IllegalArgumentException("An unsupported module cannot have " + "a minimum version");
-                }
-
-                if (!identifiers.isEmpty()) {
-                    throw new IllegalArgumentException("An unsupported module cannot have " + "identifiers");
+                    throw new IllegalArgumentException("An unsupported module cannot have a minimum version");
                 }
 
                 if (!dependencies.isEmpty()) {
-                    throw new IllegalArgumentException("An unsupported module cannot have " + "dependencies");
+                    throw new IllegalArgumentException("An unsupported module cannot have dependencies");
                 }
 
                 if (!endpoints.isEmpty()) {
-                    throw new IllegalArgumentException("An unsupported module cannot expose " + "endpoints");
+                    throw new IllegalArgumentException("An unsupported module cannot expose endpoints");
                 }
             }
         }
@@ -120,7 +108,7 @@ public final class ModuleCatalog {
     /**
      * Result of resolving a logical module selection.
      *
-     * @param identifiers ordered, de-duplicated image identifiers
+     * @param identifiers ordered, de-duplicated module identifiers
      * @param resolvedModules modules included after resolving dependencies
      * @param endpoints endpoints contributed by the resolved modules
      * @param warnings compatibility warnings generated during resolution
@@ -134,7 +122,7 @@ public final class ModuleCatalog {
         /**
          * Defensively copies all resolved collections.
          *
-         * @param identifiers ordered, de-duplicated image identifiers
+         * @param identifiers ordered, de-duplicated module identifiers
          * @param resolvedModules modules included after resolving dependencies
          * @param endpoints endpoints contributed by the resolved modules
          * @param warnings compatibility warnings generated during resolution
@@ -203,6 +191,21 @@ public final class ModuleCatalog {
         }
 
         return entry;
+    }
+
+    /**
+     * Look up a module identifier.
+     **
+     * @param identifier image specific identifier
+     * @return logical Ignition module
+     */
+    public Optional<IgnitionModule> find(String identifier) {
+        Objects.requireNonNull(identifier, "identifier");
+
+        return entries.entrySet().stream()
+                .filter(e -> e.getValue().identifier().equals(identifier))
+                .map(Map.Entry::getKey)
+                .findFirst();
     }
 
     /**
@@ -288,15 +291,15 @@ public final class ModuleCatalog {
 
         if (!entry.isAvailableIn(version)) {
             warnings.add(
-                    "Module '%s' is documented for Ignition %s or newer, but image %s was requested. Identifier(s) %s will still be applied."
-                            .formatted(module.displayName(), entry.since(), version, entry.identifiers()));
+                    "Module '%s' is documented for Ignition %s or newer, but image %s was requested. Identifier %s will still be applied."
+                            .formatted(module.displayName(), entry.since(), version, entry.identifier()));
         }
 
         for (IgnitionModule dependency : entry.dependencies()) {
             resolve(version, dependency, module, identifiers, resolvedModules, resolvedEndpoints, visiting, warnings);
         }
 
-        identifiers.addAll(entry.identifiers());
+        identifiers.add(entry.identifier());
 
         resolvedEndpoints.addAll(entry.endpoints());
 
@@ -342,7 +345,7 @@ public final class ModuleCatalog {
                     new Entry(
                             Status.SUPPORTED,
                             IgnitionVersion.parse(since),
-                            definition.identifiers(),
+                            definition.identifier(),
                             definition.dependencies(),
                             definition.endpoints(),
                             definition.description()));
@@ -398,7 +401,7 @@ public final class ModuleCatalog {
      * Creates an unsupported module entry.
      */
     private static Entry unsupportedEntry(String reason) {
-        return new Entry(Status.UNSUPPORTED, null, List.of(), Set.of(), Set.of(), requireNonBlank(reason, "reason"));
+        return new Entry(Status.UNSUPPORTED, null, "", Set.of(), Set.of(), requireNonBlank(reason, "reason"));
     }
 
     /**
