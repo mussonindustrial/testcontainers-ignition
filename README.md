@@ -15,7 +15,7 @@ This project provides a Testcontainers implementation for [Ignition by Inductive
 ```kotlin
 // build.gradle.kts
 dependencies {
-    testImplementation("com.mussonindustrial:testcontainers-ignition:0.5.0-SNAPSHOT")
+    testImplementation("com.mussonindustrial:testcontainers-ignition:0.5.0")
 }
 ```
 
@@ -24,7 +24,7 @@ dependencies {
 <dependency>
     <groupId>com.mussonindustrial</groupId>
     <artifactId>testcontainers-ignition</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.5.0</version>
     <scope>test</scope>
 </dependency>
 ```

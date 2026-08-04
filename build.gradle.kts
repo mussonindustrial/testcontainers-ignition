@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.mussonindustrial"
-version = "0.5.0-SNAPSHOT"
+version = "0.5.0"
 description = "An implementation of Testcontainers for Ignition by Inductive Automation."
 
 repositories {
