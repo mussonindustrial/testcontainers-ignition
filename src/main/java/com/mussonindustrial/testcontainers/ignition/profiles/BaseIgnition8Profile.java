@@ -162,7 +162,7 @@ public abstract class BaseIgnition8Profile implements IgnitionProfile {
      */
     protected void applySupplementalArguments(
             IgnitionVersion version, IgnitionContainerSpec specification, ContainerPlan.Builder plan) {
-        List<String> arguments = specification.additionalArguments();
+        List<String> arguments = new ArrayList<>(specification.additionalArguments());
 
         if (specification.allowUnsignedModules()) {
             arguments.add("-Dignition.allowunsignedmodules=true");
