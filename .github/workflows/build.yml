@@ -36,6 +36,7 @@ jobs:
         with:
           java-version: '${{ env.JAVA_VERSION }}'
           distribution: 'zulu'
+
       - name: 'Setup Gradle'
         uses: gradle/actions/setup-gradle@v5
         with:
@@ -43,40 +44,12 @@ jobs:
           build-scan-publish: true
           build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
           build-scan-terms-of-use-agree: "yes"
+
       - name: 'Make gradlew executable'
         run: chmod +x ./gradlew
+
       - name: 'Validate Gradle wrapper'
         uses: gradle/actions/wrapper-validation@v5
-
-      - name: Restore Ignition Image Cache if it exists
-        id: cache-docker-ignition
-        uses: actions/cache@v6
-        with:
-          path: ci/cache/docker/ignition
-          key: cache-docker-ignition
-
-      - name: Update Ignition Image Cache if cache miss
-        if: steps.cache-docker-ignition.outputs.cache-hit != 'true'
-        run: |
-    
-          docker pull inductiveautomation/ignition:8.1.5 && mkdir -p ci/cache/docker/ignition && docker image save inductiveautomation/ignition:8.1.5 --output ./ci/cache/docker/ignition/ignition-8.1.5.tar
-          docker pull inductiveautomation/ignition:8.1.7 && mkdir -p ci/cache/docker/ignition && docker image save inductiveautomation/ignition:8.1.7 --output ./ci/cache/docker/ignition/ignition-8.1.7.tar
-          docker pull inductiveautomation/ignition:8.1.16 && mkdir -p ci/cache/docker/ignition && docker image save inductiveautomation/ignition:8.1.16 --output ./ci/cache/docker/ignition/ignition-8.1.16.tar
-          docker pull inductiveautomation/ignition:8.1.22 && mkdir -p ci/cache/docker/ignition && docker image save inductiveautomation/ignition:8.1.22 --output ./ci/cache/docker/ignition/ignition-8.1.22.tar
-          docker pull inductiveautomation/ignition:8.1.33 && mkdir -p ci/cache/docker/ignition && docker image save inductiveautomation/ignition:8.1.33 --output ./ci/cache/docker/ignition/ignition-8.1.33.tar
-          docker pull inductiveautomation/ignition:8.1.49 && mkdir -p ci/cache/docker/ignition && docker image save inductiveautomation/ignition:8.1.49 --output ./ci/cache/docker/ignition/ignition-8.1.49.tar
-          docker pull inductiveautomation/ignition:8.3.8 && mkdir -p ci/cache/docker/ignition && docker image save inductiveautomation/ignition:8.3.8 --output ./ci/cache/docker/ignition/ignition-8.3.8.tar
-
-      - name: Use Ignition Image Cache if cache hit
-        if: steps.cache-docker-ignition.outputs.cache-hit == 'true'
-        run: |
-          docker image load --input ./ci/cache/docker/ignition/ignition-8.1.5.tar
-          docker image load --input ./ci/cache/docker/ignition/ignition-8.1.7.tar
-          docker image load --input ./ci/cache/docker/ignition/ignition-8.1.16.tar
-          docker image load --input ./ci/cache/docker/ignition/ignition-8.1.22.tar
-          docker image load --input ./ci/cache/docker/ignition/ignition-8.1.33.tar
-          docker image load --input ./ci/cache/docker/ignition/ignition-8.1.49.tar
-          docker image load --input ./ci/cache/docker/ignition/ignition-8.3.8.tar
 
       - name: 'Build'
         run: ./gradlew --scan build
