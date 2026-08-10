@@ -2,7 +2,7 @@
 testcontainers = "2.0.5"
 junit-platform = "6.1.2"
 junit-jupiter = "6.1.2"
-slf4j = "2.0.17"
+slf4j = "2.0.18"
 jreleaser = "1.25.0"
 spotless = "7.2.1"
 eclipse-milo = "0.6.16"
